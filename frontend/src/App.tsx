@@ -1,0 +1,29 @@
+import { Routes, Route, Navigate } from 'react-router-dom'
+import TouristLayout from './pages/tourist/Layout'
+import AdminLayout from './pages/admin/Layout'
+import HomePage from './pages/tourist/HomePage'
+import ChatPage from './pages/tourist/ChatPage'
+import RecommendPage from './pages/tourist/RecommendPage'
+import Dashboard from './pages/admin/Dashboard'
+import KnowledgeBase from './pages/admin/KnowledgeBase'
+import DigitalHuman from './pages/admin/DigitalHuman'
+import ReportPage from './pages/admin/ReportPage'
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/tourist" replace />} />
+      <Route path="/tourist" element={<TouristLayout />}>
+        <Route index element={<HomePage />} />
+        <Route path="chat" element={<ChatPage />} />
+        <Route path="recommend" element={<RecommendPage />} />
+      </Route>
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Dashboard />} />
+        <Route path="knowledge" element={<KnowledgeBase />} />
+        <Route path="digital-human" element={<DigitalHuman />} />
+        <Route path="reports" element={<ReportPage />} />
+      </Route>
+    </Routes>
+  )
+}

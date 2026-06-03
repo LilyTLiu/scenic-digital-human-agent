@@ -1,0 +1,77 @@
+# ==================
+# 1. usual
+# ==================
+# OS
+.DS_Store
+Thumbs.db
+._*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env & Secrets
+.env
+.env.*.local
+*.local
+.envrc
+
+# Logs & Temp
+*.log
+*.tmp
+*.temp
+.cache/
+.history/
+*.bak
+
+# ==================
+# 2. Python
+# ==================
+__pycache__/
+*.py[cod]
+*$py.class
+
+venv/
+.venv/
+env/
+ENV/
+
+build/
+dist/
+*.egg-info/
+*.egg
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+.mypy_cache/
+
+# ==================
+# 3. Node.js
+# ==================
+node_modules/
+
+dist/
+build/
+.next/
+out/
+
+# Optional: keep lock files
+# package-lock.json
+yarn.lock
+
+.eslintcache
+.stylelintcache
+
+# ==================
+# 4. AI/ML
+# ==================
+*.pkl
+*.joblib
+*.h5
+*.onnx
+*.pth
+*.pt
