@@ -2,10 +2,14 @@
 RAG - Retrieval Augmented Generation
 文档加载 → 文本切片 → 向量化 → 存入ChromaDB → 检索 → 增强生成
 """
+import os
+# 必须在导入 sentence-transformers 之前设置，否则 huggingface_hub 会尝试联网
+# 模型已缓存在 ~/.cache/huggingface/，日常使用无需联网
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
-import os
 
 KB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base")
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
@@ -83,8 +87,10 @@ def build_prompt(query: str, context_docs: list[dict], scenic_spot: str) -> str:
 {query}
 
 【回答要求】
-1. 准确回答，不编造知识库中没有的信息
-2. 如果知识库中没有相关信息，诚实告知游客，并建议游客咨询景区工作人员
-3. 语气亲切自然，像一位热情的导游在给游客讲解
-4. 回答中可适当引用知识库中的具体数据、历史典故、文化内涵等内容
+1. 仔细阅读所有参考片段，不要遗漏任何信息——演出时间、开放时间等实用信息可能藏在片段末尾
+2. 如果游客问的是时间、票价、演出等实用信息，优先从参考片段的"演艺/开放信息"或"游玩亮点"字段中查找
+3. 准确回答，不编造知识库中没有的信息
+4. 如果知识库中确实搜索不到相关信息，诚实告知游客"暂时没有查到这方面的详细信息"，并建议游客关注景区官方小程序或咨询现场工作人员
+5. 语气亲切自然，像一位热情的导游在给游客讲解
+6. 回答中可适当引用知识库中的具体数据、历史典故、文化内涵等内容
 """

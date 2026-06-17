@@ -4,12 +4,13 @@ ASR - Automatic Speech Recognition
 """
 import os
 import tempfile
+import subprocess
 
-# 懒加载模型
 _asr_model = None
 
 
 def get_model():
+    """懒加载Whisper模型"""
     global _asr_model
     if _asr_model is None:
         from faster_whisper import WhisperModel
@@ -21,6 +22,8 @@ def get_model():
 async def transcribe(audio_bytes: bytes, language: str = "zh") -> tuple[str, float]:
     """将音频转写为文本，返回(文本, 置信度)"""
     model = get_model()
+
+    # 保存临时文件
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         f.write(audio_bytes)
         tmp_path = f.name

@@ -4,6 +4,7 @@ import AdminLayout from './pages/admin/Layout'
 import HomePage from './pages/tourist/HomePage'
 import ChatPage from './pages/tourist/ChatPage'
 import RecommendPage from './pages/tourist/RecommendPage'
+import TourPage from './pages/tourist/TourPage'
 import Dashboard from './pages/admin/Dashboard'
 import KnowledgeBase from './pages/admin/KnowledgeBase'
 import DigitalHuman from './pages/admin/DigitalHuman'
@@ -16,6 +17,7 @@ export default function App() {
       <Route path="/tourist" element={<TouristLayout />}>
         <Route index element={<HomePage />} />
         <Route path="chat" element={<ChatPage />} />
+        <Route path="tour" element={<TourPage />} />
         <Route path="recommend" element={<RecommendPage />} />
       </Route>
       <Route path="/admin" element={<AdminLayout />}>

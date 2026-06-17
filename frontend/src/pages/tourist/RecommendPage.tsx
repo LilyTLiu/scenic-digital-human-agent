@@ -1,95 +1,197 @@
-import { Card, Typography, Divider, Tag, Timeline } from 'antd'
-import { ClockCircleOutlined, EnvironmentOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-const { Title, Paragraph } = Typography
+interface RouteStop { time: string; name: string; desc: string }
 
-const routes = [
+interface Route {
+  title: string
+  icon: string
+  duration: string
+  type: string
+  color: string
+  tags: string[]
+  desc: string
+  stops: RouteStop[]
+}
+
+const routes: Route[] = [
   {
-    title: '历史文化爱好者路线',
+    title: '历史文化深度游',
+    icon: '🏛️',
     duration: '约6小时',
     type: '深度游',
+    color: '#8b5e3c',
     tags: ['历史', '文化', '佛教'],
-    description: '适合对佛教历史和文化有浓厚兴趣的游客，全面了解灵山胜境的文化底蕴。',
+    desc: '从唐玄奘传说到现代灵山，全面感受千年佛教文化积淀，适合对历史有浓厚兴趣的游客。',
     stops: [
-      '南门入园 → 灵山大照壁（华夏第一壁）',
-      '胜境广场 → 佛手广场（天下第一掌）',
-      '祥符禅寺（千年古刹历史讲解）',
-      '杏坛广场 → 佛前广场',
-      '灵山大佛（佛教造像艺术解析）',
-      '灵山梵宫（佛教艺术殿堂深度游）',
-      '五印坛城（藏传佛教文化体验）',
-      '三圣殿 → 出口',
+      { time: '09:00', name: '灵山大照壁', desc: '华夏第一壁，赵朴初题词' },
+      { time: '09:20', name: '五明桥 · 佛足坛', desc: '过智慧桥，瞻仰佛足圣迹' },
+      { time: '09:40', name: '祥符禅寺', desc: '千年古刹，听玄奘与小灵山的故事' },
+      { time: '10:30', name: '灵山大佛', desc: '88米青铜大佛，登216级台阶' },
+      { time: '13:00', name: '灵山梵宫', desc: '"东方卢浮宫"，艺术殿堂' },
+      { time: '14:30', name: '五印坛城', desc: '藏传佛教文化体验' },
+      { time: '15:30', name: '三圣殿', desc: '佛教历史文化展示，结束游览' },
     ],
   },
   {
-    title: '自然风光爱好者路线',
+    title: '自然风光轻松游',
+    icon: '🌿',
     duration: '约5小时',
     type: '全景游',
+    color: '#2d8a7b',
     tags: ['自然', '摄影', '休闲'],
-    description: '在感受佛教文化的同时，欣赏太湖风光和园林美景。',
+    desc: '穿梭于禅意园林与太湖风光之间，在自然美景中感受佛教文化的宁静致远。',
     stops: [
-      '南门入园 → 佛足坛',
-      '九龙灌浴（观赏表演）',
-      '菩提大道（欣赏太湖风光）',
-      '灵山大佛（登顶俯瞰全景）',
-      '曼飞龙塔（园林景观）',
-      '灵山精舍（禅意园林）',
-      '梵宫广场 → 出口',
+      { time: '09:00', name: '佛足坛 · 九龙灌浴', desc: '观赏花开见佛动态表演' },
+      { time: '10:00', name: '菩提大道', desc: '漫步林荫道，赏太湖风光' },
+      { time: '11:00', name: '灵山大佛登顶', desc: '俯瞰太湖全景，拍摄佛光普照' },
+      { time: '13:00', name: '曼飞龙塔', desc: '傣族风格园林景观' },
+      { time: '14:00', name: '灵山精舍', desc: '禅意园林，体验宁静致远' },
+      { time: '15:30', name: '梵宫广场', desc: '夕阳下拍摄梵宫全景' },
     ],
   },
   {
-    title: '亲子家庭路线',
+    title: '亲子欢乐游',
+    icon: '👨‍👩‍👧',
     duration: '约4小时',
     type: '轻松游',
+    color: '#e88b7e',
     tags: ['亲子', '互动', '体验'],
-    description: '适合带小朋友的家庭，轻松愉快，寓教于乐。',
+    desc: '寓教于乐的轻松路线，让孩子在互动中了解佛教文化，全家共享美好时光。',
     stops: [
-      '南门入园 → 九龙灌浴（观赏动态表演）',
-      '佛手广场（摸"天下第一掌"祈福）',
-      '百子戏弥勒（亲子互动拍照）',
-      '梵宫（欣赏艺术作品）',
-      '五印坛城（体验藏式文化）',
-      '出口',
+      { time: '09:30', name: '九龙灌浴', desc: '看表演听佛陀诞生的故事' },
+      { time: '10:10', name: '佛手广场', desc: '摸天下第一掌，祈福纳祥' },
+      { time: '10:40', name: '百子戏弥勒', desc: '寻百名孩童雕塑，亲子拍照' },
+      { time: '11:30', name: '梵宫圣坛', desc: '看《吉祥颂》全息演出' },
+      { time: '13:30', name: '五印坛城', desc: '转经筒互动体验' },
     ],
   },
 ]
 
 export default function RecommendPage() {
+  const navigate = useNavigate()
+  const [expanded, setExpanded] = useState<number | null>(null)
+
   return (
-    <div style={{ padding: 24, maxWidth: 600, margin: '0 auto', paddingBottom: 80 }}>
-      <Title level={4}>个性化路线推荐</Title>
-      <Paragraph type="secondary">根据您的兴趣偏好，为您推荐以下游览路线</Paragraph>
+    <div className="page-enter" style={{ padding: '20px 16px 32px' }}>
+      {/* 头部 */}
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ fontSize: 22, fontWeight: 700 }}>游览路线推荐</h2>
+        <p style={{ fontSize: 13, color: '#9c948c', marginTop: 4 }}>
+          根据您的偏好，选择最适合的游览方式
+        </p>
+      </div>
 
-      <Divider />
+      {/* 路线卡片 */}
+      {routes.map((r, i) => {
+        const open = expanded === i
+        return (
+          <div
+            key={i}
+            className="card"
+            style={{
+              marginBottom: 16,
+              borderLeft: `4px solid ${r.color}`,
+              transition: 'all 0.3s',
+            }}
+          >
+            {/* 卡片头部 */}
+            <div
+              style={{ padding: '16px 18px', cursor: 'pointer' }}
+              onClick={() => setExpanded(open ? null : i)}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <span style={{ fontSize: 28 }}>{r.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600 }}>{r.title}</h3>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                    <span style={{ fontSize: 12, color: '#9c948c' }}>⏱ {r.duration}</span>
+                    <span style={{ fontSize: 12, color: r.color, fontWeight: 500 }}>{r.type}</span>
+                  </div>
+                </div>
+                <svg
+                  width="20" height="20" viewBox="0 0 24 24"
+                  fill="none" stroke="#9c948c" strokeWidth="2"
+                  style={{
+                    transform: open ? 'rotate(180deg)' : 'rotate(0)',
+                    transition: 'transform 0.25s',
+                  }}
+                >
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {r.tags.map((t) => (
+                  <span key={t} style={{
+                    padding: '2px 10px', borderRadius: 10,
+                    background: `${r.color}12`, color: r.color,
+                    fontSize: 11, fontWeight: 500,
+                  }}>{t}</span>
+                ))}
+              </div>
+              <p style={{ fontSize: 13, color: '#6b6058', marginTop: 8, lineHeight: 1.5 }}>
+                {r.desc}
+              </p>
+            </div>
 
-      {routes.map((route, i) => (
-        <Card
-          key={i}
-          style={{ marginBottom: 16 }}
-          title={
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <EnvironmentOutlined />
-              {route.title}
-            </div>
-          }
-        >
-          <div style={{ marginBottom: 12 }}>
-            <ClockCircleOutlined /> {route.duration} · {route.type}
-            <div style={{ marginTop: 8 }}>
-              {route.tags.map((tag) => (
-                <Tag key={tag} color="blue">{tag}</Tag>
-              ))}
-            </div>
+            {/* 展开：路线详情 */}
+            {open && (
+              <div style={{
+                padding: '0 18px 18px',
+                borderTop: '1px solid #f0ebe0',
+                animation: 'pageIn 0.25s ease-out',
+              }}>
+                {/* 时间轴 */}
+                <div style={{ position: 'relative', paddingLeft: 20 }}>
+                  <div style={{
+                    position: 'absolute', left: 6, top: 8, bottom: 8,
+                    width: 2, background: '#e8e3db', borderRadius: 1,
+                  }} />
+                  {r.stops.map((s, j) => (
+                    <div key={j} style={{
+                      position: 'relative', marginBottom: j < r.stops.length - 1 ? 14 : 0,
+                      paddingLeft: 8,
+                    }}>
+                      <div style={{
+                        position: 'absolute', left: -18, top: 4,
+                        width: 10, height: 10, borderRadius: '50%',
+                        background: r.color, border: '2px solid #fff',
+                        boxShadow: `0 0 0 2px ${r.color}30`,
+                      }} />
+                      <div style={{ fontSize: 11, color: r.color, fontWeight: 600 }}>
+                        {s.time}
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 500, marginTop: 1 }}>
+                        {s.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#9c948c', marginTop: 1 }}>
+                        {s.desc}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 操作按钮 */}
+                <button
+                  onClick={() => navigate(`/tourist/tour?route=${i}`)}
+                  style={{
+                    marginTop: 16, width: '100%', padding: '12px',
+                    borderRadius: 24, border: 'none', cursor: 'pointer',
+                    background: r.color, color: '#fff',
+                    fontSize: 15, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                  让AI导游解说这条路线
+                </button>
+              </div>
+            )}
           </div>
-          <Paragraph>{route.description}</Paragraph>
-          <Divider orientation="left" plain style={{ fontSize: 13 }}>路线详情</Divider>
-          <Timeline
-            items={route.stops.map((stop) => ({
-              children: stop,
-            }))}
-          />
-        </Card>
-      ))}
+        )
+      })}
     </div>
   )
 }

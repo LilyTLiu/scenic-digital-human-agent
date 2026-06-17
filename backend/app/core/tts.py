@@ -1,13 +1,13 @@
 """
 TTS - Text to Speech
-基于 edge-tts 实现文本转语音
+基于 edge-tts 实现文本转语音，免费且自然度高
 """
 import tempfile
 import os
 
 
 async def synthesize(text: str, voice: str = "zh-CN-XiaoxiaoNeural") -> bytes:
-    """将文本合成为语音，返回音频bytes"""
+    """将文本合成为语音，返回MP3音频bytes"""
     import edge_tts
     communicate = edge_tts.Communicate(text, voice)
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
