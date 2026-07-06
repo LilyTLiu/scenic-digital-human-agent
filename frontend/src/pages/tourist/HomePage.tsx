@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PERSONAS, type PersonaId } from '../../config/personas'
-import DigitalHuman from '../../components/DigitalHuman'
+import { useUser } from '../../contexts/UserContext'
+import LoginModal from '../../components/LoginModal'
+import ProfileDrawer from '../../components/ProfileDrawer'
 
 const scenicSpots = [
   {
@@ -14,9 +16,7 @@ const scenicSpots = [
   },
 ]
 
-const personaList = Object.values(PERSONAS)
-
-const quickQuestions = [
+const defaultQuestions = [
   '灵山大佛有多高？',
   '九龙灌浴几点表演？',
   '带孩子怎么玩？',
@@ -24,17 +24,66 @@ const quickQuestions = [
   '梵宫有什么看点？',
 ]
 
+// 根据偏好标签匹配快捷提问
+const preferenceQuestions: Record<string, string[]> = {
+  '佛教文化': ['灵山大佛的建造背景？', '祥符禅寺千年历史？', '五印坛城有什么特色？'],
+  '建筑艺术': ['梵宫的建筑风格有何独特？', '灵山大照壁的雕刻细节？', '九龙灌浴雕塑的设计理念？'],
+  '历史典故': ['唐玄奘与小灵山的故事？', '灵山胜境的发展历程？', '赵朴初与灵山的渊源？'],
+  '自然风光': ['灵山太湖最佳观景点？', '哪个季节来灵山最美？', '菩提大道有什么植物景观？'],
+  '亲子互动': ['带孩子怎么玩灵山？', '九龙灌浴几点表演？', '灵山有哪些互动体验项目？'],
+  '禅修体验': ['灵山精舍有禅修课程吗？', '如何预约禅修体验？', '灵山有哪些适合冥想的地方？'],
+  '摄影打卡': ['灵山最佳拍照点在哪里？', '梵宫哪个角度拍最好看？', '什么时间拍大佛光线最好？'],
+  '美食素斋': ['灵山素食餐厅推荐？', '梵宫素斋有什么特色菜？', '灵山周边有什么美食？'],
+}
+
+function getPersonalizedQuestions(interests: string[]): string[] {
+  const qs: string[] = []
+  for (const tag of interests) {
+    const matched = preferenceQuestions[tag]
+    if (matched) qs.push(...matched)
+  }
+  // 取前5个，不足的用默认补齐
+  const unique = [...new Set(qs)]
+  if (unique.length < 5) {
+    for (const dq of defaultQuestions) {
+      if (!unique.includes(dq)) unique.push(dq)
+      if (unique.length >= 5) break
+    }
+  }
+  return unique.slice(0, 5)
+}
+
 export default function HomePage() {
   const navigate = useNavigate()
-  const [selectedPersona, setSelectedPersona] = useState<PersonaId>('xiaoling')
-  const selectedPersonaData = PERSONAS[selectedPersona]
+  const { user, login } = useUser()
+  const [loginOpen, setLoginOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [activeId, setActiveId] = useState<PersonaId>('miaoyin')
+
+  // 从后端获取管理员设置的活跃数字人形象
+  useEffect(() => {
+    fetch('/api/admin/digital-humans')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.active && data.active in PERSONAS) {
+          setActiveId(data.active as PersonaId)
+        }
+      })
+      .catch(() => { /* 后端不可用时保持默认miaoyin */ })
+  }, [])
+
+  const activePersona = PERSONAS[activeId]
+
+  const quickQuestions = user?.interests?.length
+    ? getPersonalizedQuestions(user.interests)
+    : defaultQuestions
 
   const handleQuickAsk = (q: string) => {
-    navigate(`/tourist/chat?q=${encodeURIComponent(q)}&persona=${selectedPersona}`)
+    navigate(`/tourist/chat?q=${encodeURIComponent(q)}&persona=${activeId}`)
   }
 
   return (
-    <div className="page-enter" style={{ padding: '0 0 32px' }}>
+    <div className="page-enter" style={{ padding: '0 0 32px', position: 'relative' }}>
       {/* === Hero 景区封面 === */}
       <div style={{
         background: scenicSpots[0].cover,
@@ -52,6 +101,53 @@ export default function HomePage() {
           width: 120, height: 120, borderRadius: '50%',
           background: 'rgba(255,255,255,0.03)',
         }} />
+
+        {/* 右上角个人中心按钮 */}
+        <div style={{
+          position: 'absolute', top: 12, right: 16, zIndex: 10,
+        }}>
+          {user ? (
+            <button
+              onClick={() => setProfileOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 12px 6px 6px', borderRadius: 20,
+                background: 'rgba(255,255,255,0.18)', border: 'none',
+                color: '#fff', fontSize: 13, cursor: 'pointer',
+                backdropFilter: 'blur(8px)', transition: 'all 0.2s',
+              }}
+            >
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #c8963e, #e88b7e)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 14, fontWeight: 700,
+              }}>
+                {user.nickname?.[0] || '👤'}
+              </div>
+              <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.nickname}
+              </span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setLoginOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 16px', borderRadius: 20,
+                background: 'rgba(255,255,255,0.18)', border: 'none',
+                color: '#fff', fontSize: 13, cursor: 'pointer',
+                backdropFilter: 'blur(8px)', transition: 'all 0.2s',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
+              </svg>
+              登录
+            </button>
+          )}
+        </div>
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <span style={{
@@ -77,99 +173,75 @@ export default function HomePage() {
               }}>{t}</span>
             ))}
           </div>
+
+          {/* 登录用户问候语 */}
+          {user && (
+            <div style={{
+              marginTop: 16, padding: '10px 16px', borderRadius: 12,
+              background: 'rgba(255,255,255,0.08)', color: '#fff',
+              fontSize: 13, lineHeight: 1.5,
+            }}>
+              👋 欢迎回来，<strong>{user.nickname}</strong>！
+              {user.travel_style && (
+                <span style={{ marginLeft: 8, opacity: 0.8 }}>
+                  已为你定制<strong>{user.travel_style}</strong>专属内容
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* === AI导游选择 === */}
+      {/* === 今日AI导游 === */}
       <div style={{ padding: '0 20px', marginTop: -20, position: 'relative', zIndex: 2 }}>
         <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 2 }}>选择您的AI导游</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 2 }}>今日AI导游</h3>
           <p style={{ fontSize: 13, color: '#9c948c', marginBottom: 16 }}>
-            每位导游有独特的声音和形象，点击选择
+            旅途陪伴，为您提供贴心服务
           </p>
 
-          {/* 当前选中的数字人预览 */}
+          {/* 当前导游预览 */}
           <div style={{
-            display: 'flex', justifyContent: 'center', marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 14,
+            padding: '14px 16px', borderRadius: 14,
+            background: `${activePersona.color}0D`,
+            border: `1.5px solid ${activePersona.color}25`,
           }}>
-            <div style={{
-              width: 80, height: 80, borderRadius: '50%',
-              boxShadow: `0 4px 20px ${selectedPersonaData.color}30`,
-              transition: 'all 0.3s',
-            }}>
-              <DigitalHuman
-                speaking={false}
-                emotion="happy"
-                size={80}
-                visual={selectedPersonaData.visual}
-              />
+            <img
+              src={activePersona.image}
+              alt={activePersona.name}
+              style={{
+                width: 56, height: 56, borderRadius: '50%',
+                objectFit: 'cover', objectPosition: 'center top',
+                boxShadow: `0 3px 12px ${activePersona.color}30`,
+                flexShrink: 0,
+              }}
+            />
+            <div>
+              <span style={{ fontSize: 18, fontWeight: 700, color: activePersona.color }}>{activePersona.name}</span>
+              <div style={{ fontSize: 12, color: '#9c948c', marginTop: 2 }}>{activePersona.style} · {activePersona.role}</div>
+              <div style={{ fontSize: 11, color: activePersona.color, marginTop: 2, fontWeight: 500 }}>
+                擅长{activePersona.style}的讲解风格
+              </div>
             </div>
-          </div>
-
-          {/* 三个选择按钮 - 不使用嵌套canvas */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            {personaList.map((p) => {
-              const selected = selectedPersona === p.id
-              return (
-                <div
-                  key={p.id}
-                  onClick={() => setSelectedPersona(p.id)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => { if (e.key === 'Enter') setSelectedPersona(p.id) }}
-                  style={{
-                    flex: 1, textAlign: 'center', cursor: 'pointer',
-                    padding: '12px 6px', borderRadius: 14,
-                    border: selected ? `2.5px solid ${p.color}` : '2px solid #e8e3db',
-                    background: selected ? `${p.color}0D` : '#faf8f5',
-                    transition: 'all 0.25s',
-                    outline: 'none',
-                    transform: selected ? 'translateY(-3px)' : 'none',
-                    boxShadow: selected ? `0 6px 20px ${p.color}25` : '0 1px 2px rgba(0,0,0,0.04)',
-                    userSelect: 'none',
-                  }}
-                >
-                  <div style={{
-                    fontSize: 32, lineHeight: 1.2,
-                    filter: selected ? 'none' : 'grayscale(30%)',
-                    transition: 'all 0.25s',
-                    transform: selected ? 'scale(1.15)' : 'scale(1)',
-                  }}>
-                    {p.emoji}
-                  </div>
-                  <div style={{
-                    fontSize: 15, fontWeight: 600,
-                    color: selected ? p.color : '#3d3630',
-                    transition: 'color 0.25s',
-                    marginTop: 4,
-                  }}>{p.name}</div>
-                  <div style={{
-                    fontSize: 11, color: p.color, marginTop: 1,
-                    fontWeight: selected ? 600 : 400,
-                    transition: 'all 0.25s',
-                  }}>{p.style}</div>
-                  <div style={{ fontSize: 10, color: '#9c948c', marginTop: 1 }}>{p.role}</div>
-                  {selected && (
-                    <div style={{
-                      marginTop: 6, width: 20, height: 20, borderRadius: '50%',
-                      background: p.color, color: '#fff', fontSize: 12,
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      fontWeight: 700,
-                    }}>✓</div>
-                  )}
-                  {!selected && (
-                    <div style={{ marginTop: 6, width: 20, height: 20 }} />
-                  )}
-                </div>
-              )
-            })}
           </div>
         </div>
       </div>
 
       {/* === 快捷提问 === */}
       <div style={{ padding: '0 20px', marginTop: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>大家都在问</h3>
+        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+          {user?.interests?.length ? '为你推荐' : '大家都在问'}
+        </h3>
+        {user?.interests?.length ? (
+          <p style={{ fontSize: 12, color: '#9c948c', marginBottom: 12 }}>
+            根据你的兴趣偏好 <span style={{ color: '#c8963e', fontWeight: 500 }}>{user.interests.join('、')}</span> 推荐
+          </p>
+        ) : (
+          <p style={{ fontSize: 12, color: '#9c948c', marginBottom: 12 }}>
+            登录后可获得个性化推荐
+          </p>
+        )}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {quickQuestions.map((q) => (
             <button
@@ -195,7 +267,7 @@ export default function HomePage() {
         <button
           className="btn-primary"
           style={{ width: '100%', height: 52, fontSize: 17 }}
-          onClick={() => navigate(`/tourist/chat?persona=${selectedPersona}`)}
+          onClick={() => navigate(`/tourist/chat?persona=${activeId}`)}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -213,10 +285,28 @@ export default function HomePage() {
           </svg>
           景区导览演示
         </button>
+        <button
+          className="btn-secondary"
+          style={{ width: '100%', height: 48, fontSize: 15, marginTop: 10 }}
+          onClick={() => navigate('/tourist/faq')}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          使用指南
+        </button>
         <p style={{ fontSize: 12, color: '#9c948c', marginTop: 10 }}>
           支持语音输入和文字输入 · 24小时在线
         </p>
       </div>
+
+      {/* 登录弹窗 */}
+      <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} onLogin={login} />
+
+      {/* 个人中心抽屉 */}
+      <ProfileDrawer open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   )
 }

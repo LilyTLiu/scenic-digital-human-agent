@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useUser } from '../../contexts/UserContext'
 
 interface RouteStop { time: string; name: string; desc: string }
 
@@ -68,9 +69,26 @@ const routes: Route[] = [
   },
 ]
 
+function matchScore(route: Route, interests: string[], travelStyle: string): number {
+  let score = 0
+  for (const tag of route.tags) {
+    if (interests.some((i) => i.includes(tag) || tag.includes(i))) score += 3
+  }
+  if (route.type.includes(travelStyle)) score += 5
+  if (route.title.includes(travelStyle.replace('游', ''))) score += 5
+  return score
+}
+
 export default function RecommendPage() {
   const navigate = useNavigate()
+  const { user } = useUser()
   const [expanded, setExpanded] = useState<number | null>(null)
+
+  const interests = user?.interests || []
+  const travelStyle = user?.travel_style || ''
+  const sorted = interests.length || travelStyle
+    ? [...routes].sort((a, b) => matchScore(b, interests, travelStyle) - matchScore(a, interests, travelStyle))
+    : routes
 
   return (
     <div className="page-enter" style={{ padding: '20px 16px 32px' }}>
@@ -78,12 +96,19 @@ export default function RecommendPage() {
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700 }}>游览路线推荐</h2>
         <p style={{ fontSize: 13, color: '#9c948c', marginTop: 4 }}>
-          根据您的偏好，选择最适合的游览方式
+          {user?.travel_style
+            ? `根据你的「${user.travel_style}」偏好排序`
+            : '根据您的偏好，选择最适合的游览方式'}
         </p>
+        {!user && (
+          <p style={{ fontSize: 12, color: '#c8963e', marginTop: 4 }}>
+            💡 登录并设置偏好后，可智能推荐最适合你的路线
+          </p>
+        )}
       </div>
 
       {/* 路线卡片 */}
-      {routes.map((r, i) => {
+      {sorted.map((r, i) => {
         const open = expanded === i
         return (
           <div

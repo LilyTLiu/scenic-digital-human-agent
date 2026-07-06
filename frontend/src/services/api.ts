@@ -8,7 +8,7 @@ const api = axios.create({
 
 // 对话 - 支持普通模式与流式模式
 export const chatApi = {
-  send: (data: { message: string; scenic_spot?: string; stream?: boolean }) =>
+  send: (data: { message: string; scenic_spot?: string; stream?: boolean; token?: string }) =>
     api.post('/chat/send', data).then((r) => r.data),
 
   sendStream: (
@@ -78,8 +78,19 @@ export const adminApi = {
   updateKnowledge: (id: string, data: any) => api.put(`/admin/knowledge/${id}`, data).then((r) => r.data),
   deleteKnowledge: (id: string) => api.delete(`/admin/knowledge/${id}`).then((r) => r.data),
   getReports: () => api.get('/admin/reports').then((r) => r.data),
+  getTourists: () => api.get('/admin/tourists').then((r) => r.data),
   getDigitalHumans: () => api.get('/admin/digital-humans').then((r) => r.data),
   updateDigitalHuman: (id: string, config: any) => api.put(`/admin/digital-humans/${id}`, config).then((r) => r.data),
+}
+
+// 用户系统
+export const userApi = {
+  sendCode: (phone: string) => api.post('/user/send-code', { phone }).then((r) => r.data),
+  login: (phone: string, code: string) => api.post('/user/login', { phone, code }).then((r) => r.data),
+  getProfile: (token: string) =>
+    api.get('/user/profile', { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.data),
+  updateProfile: (token: string, data: any) =>
+    api.put('/user/profile', data, { headers: { Authorization: `Bearer ${token}` } }).then((r) => r.data),
 }
 
 export default api

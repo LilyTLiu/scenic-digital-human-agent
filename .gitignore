@@ -75,3 +75,27 @@ yarn.lock
 *.onnx
 *.pth
 *.pt
+
+# ==================
+# 5. Project-specific
+# ==================
+# SQLite database
+backend/data.db
+
+# ChromaDB binary indexes (rebuildable)
+backend/chroma_db/**/data_level0.bin
+backend/chroma_db/**/length.bin
+
+# Large model weights
+backend/models/
+
+# OAC lam_samples (large zip files)
+lam_samples/
+
+# Temp/test files
+exp/
+frontend/public/test-frame.html
+pytorch3d_build/
+
+# ZIP artifacts
+*.zip

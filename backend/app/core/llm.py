@@ -21,6 +21,45 @@ def get_api_key():
     return key
 
 
+async def chat_with_system(
+    system_prompt: str,
+    user_message: str,
+    history: list[dict] | None = None,
+    temperature: float = 0.7,
+) -> str:
+    """带独立system prompt和对话历史的聊天，供OpenAvatarChat等外部系统调用"""
+    api_key = get_api_key()
+    messages = [{"role": "system", "content": system_prompt}]
+    if history:
+        for h in history:
+            role = h.get("role", "user")
+            content = h.get("content", "")
+            if content:
+                messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_message})
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": 300,
+    }
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        resp = await client.post(
+            f"{DEEPSEEK_API_BASE}/chat/completions",
+            headers=headers,
+            json=payload,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+
+
 async def chat(prompt: str, temperature: float = 0.7) -> str:
     api_key = get_api_key()
     headers = {
@@ -34,7 +73,7 @@ async def chat(prompt: str, temperature: float = 0.7) -> str:
             {"role": "user", "content": prompt},
         ],
         "temperature": temperature,
-        "max_tokens": 2048,
+        "max_tokens": 300,
     }
 
     async with httpx.AsyncClient(timeout=60.0) as client:

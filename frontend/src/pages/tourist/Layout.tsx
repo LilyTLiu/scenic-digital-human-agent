@@ -50,6 +50,18 @@ const tabs: Tab[] = [
       </svg>
     ),
   },
+  {
+    key: '/tourist/digital-human',
+    label: 'AI数字人',
+    icon: (active) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={active ? '#c8963e' : '#9c948c'} strokeWidth="2">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
+        <circle cx="18" cy="4" r="2" fill={active ? '#c8963e' : '#9c948c'} stroke="none"/>
+        <circle cx="6" cy="4" r="2" fill={active ? '#c8963e' : '#9c948c'} stroke="none"/>
+      </svg>
+    ),
+  },
 ]
 
 export default function TouristLayout() {

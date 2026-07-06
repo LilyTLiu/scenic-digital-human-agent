@@ -17,6 +17,7 @@ interface Props {
   listening?: boolean
   size?: number
   visual?: PersonaVisual
+  image?: string
 }
 
 const DEFAULT_VISUAL: PersonaVisual = {
@@ -34,6 +35,7 @@ export default function DigitalHuman({
   listening = false,
   size = 180,
   visual = DEFAULT_VISUAL,
+  image,
 }: Props) {
   const isMale = visual.gender === 'male'
 
@@ -138,6 +140,23 @@ export default function DigitalHuman({
         .dh-pulse-ring { display: none; }
       `}</style>
 
+      {/* Character photo */}
+      {image && (
+        <img
+          src={image}
+          alt="角色形象"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            borderRadius: '50%',
+            objectFit: 'cover',
+            objectPosition: 'center top',
+            zIndex: 0,
+          }}
+        />
+      )}
       <svg
         width={size}
         height={size}

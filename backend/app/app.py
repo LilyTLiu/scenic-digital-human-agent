@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import chat, voice, admin, upload
+from app.api import chat, voice, admin, upload, user
 
 app = FastAPI(
     title="AI数字人智能导游系统",
@@ -20,6 +20,7 @@ app.include_router(chat.router, prefix="/api/chat", tags=["对话"])
 app.include_router(voice.router, prefix="/api/voice", tags=["语音"])
 app.include_router(admin.router, prefix="/api/admin", tags=["管理"])
 app.include_router(upload.router, prefix="/api/upload", tags=["上传"])
+app.include_router(user.router, prefix="/api/user", tags=["用户"])
 
 
 @app.get("/api/health")

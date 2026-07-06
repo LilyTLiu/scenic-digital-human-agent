@@ -1,14 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import DigitalHuman, { Emotion } from '../../components/DigitalHuman'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { chatApi, voiceApi } from '../../services/api'
-import { getPersona } from '../../config/personas'
+import { getPersona, PERSONAS, type PersonaId } from '../../config/personas'
+import type { Emotion } from '../../components/DigitalHuman'
 import { findBestVoice, findFallbackVoice } from '../../utils/voice'
+import { useUser } from '../../contexts/UserContext'
+
+// HTTP(localhost): 直连OAC，行为不变
+// HTTPS(局域网): 通过Vite代理访问OAC，保障媒体设备权限
+const isHttps = window.location.protocol === 'https:'
+const OAC_BASE = isHttps ? '' : 'http://localhost:8787'
 
 interface ChatMessage {
   role: 'user' | 'ai' | 'error'
   content: string
-  timestamp: number  // 序列化友好的时间戳
+  timestamp: number
 }
 
 const STORAGE_KEY = 'lingshan_chat_history'
@@ -42,8 +48,12 @@ function detectEmotion(text: string): Emotion {
 }
 
 export default function ChatPage() {
-  const [searchParams] = useSearchParams()
-  const persona = getPersona(searchParams.get('persona'))
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { token } = useUser()
+  const personaParam = searchParams.get('persona') as PersonaId | null
+  const activePersona: PersonaId = personaParam && personaParam in PERSONAS ? personaParam : 'miaoyin'
+  const persona = getPersona(activePersona)
 
   const initialQuestion = searchParams.get('q') || ''
 
@@ -58,7 +68,7 @@ export default function ChatPage() {
   })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [speakingIdx, setSpeakingIdx] = useState(-1) // 正在播放的消息索引，-1=无
+  const [speakingIdx, setSpeakingIdx] = useState(-1)
   const speaking = speakingIdx >= 0
   const [listening, setListening] = useState(false)
   const [emotion, setEmotion] = useState<Emotion>('happy')
@@ -70,18 +80,57 @@ export default function ChatPage() {
   personaRef.current = persona
   const speakingIdxRef = useRef(-1)
 
-  // 持久化
+  // iframe state
+  const [iframeReady, setIframeReady] = useState(false)
+  const [loadStamp, setLoadStamp] = useState(Date.now())
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [showIframe, setShowIframe] = useState(true)
+  const [ratedMessages, setRatedMessages] = useState<Set<number>>(new Set())
+
+  // Preserve iframe connection when navigating within the app
+  const loadIframe = useCallback((stamp: number) => {
+    if (!iframeRef.current) return
+    iframeRef.current.src = 'about:blank'
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (iframeRef.current) {
+          iframeRef.current.src = `${OAC_BASE}/ui/index.html?t=${stamp}`
+        }
+      })
+    })
+  }, [])
+
+  useEffect(() => {
+    const stamp = Date.now()
+    setLoadStamp(stamp)
+  }, [])
+
+  useEffect(() => {
+    loadIframe(loadStamp)
+  }, [loadStamp, loadIframe])
+
+  useEffect(() => {
+    if (iframeReady) return
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+    errorTimerRef.current = setTimeout(() => {
+      // iframe failed to load, hide it and show chat full screen
+      setShowIframe(false)
+    }, 8000)
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
+    }
+  }, [loadStamp, iframeReady])
+
   useEffect(() => {
     saveHistory(persona.id, messages)
   }, [messages, persona.id])
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  // 自动发送 URL 携带的问题
   useEffect(() => {
     if (!initialQuestion) return
     let cancelled = false
-    // 延迟确保页面渲染完成
     const timer = setTimeout(() => {
       if (!cancelled) sendMessage(initialQuestion)
     }, 300)
@@ -97,7 +146,7 @@ export default function ChatPage() {
     setEmotion('thinking')
 
     try {
-      const res = await chatApi.send({ message: text.trim(), scenic_spot: 'lingshan' })
+      const res = await chatApi.send({ message: text.trim(), scenic_spot: 'lingshan', token: token || '' })
       const reply = res.reply || '抱歉，我暂时无法回答这个问题。'
       setMsg((p) => [...p, { role: 'ai', content: reply, timestamp: Date.now() }])
       setEmotion(detectEmotion(reply))
@@ -105,7 +154,7 @@ export default function ChatPage() {
       const detail = err?.response?.data?.detail || err?.message || '未知错误'
       let errorMsg = ''
       if (err?.code === 'ERR_NETWORK' || detail.includes('Network Error') || detail.includes('connect')) {
-        errorMsg = '无法连接到后端服务，请确认：\n1. 后端已启动: cd backend && python main.py\n2. API Key 已配置: $env:DEEPSEEK_API_KEY="sk-xxx"\n3. 后端地址 http://localhost:8000 可访问'
+        errorMsg = '无法连接到后端服务，请确认：\n1. 后端已启动: cd backend && python main.py\n2. API Key 已配置: $env:DEEPSEEK_API_KEY="sk-xxx"  \n3. 后端地址 http://localhost:8000 可访问'
       } else if (detail.includes('DEEPSEEK_API_KEY') || detail.includes('503') || detail.includes('401')) {
         errorMsg = '后端API Key未配置或无效，请在启动后端时设置：\n$env:DEEPSEEK_API_KEY="sk-xxx"'
       } else {
@@ -119,12 +168,10 @@ export default function ChatPage() {
   }, [loading])
 
   const startListen = async () => {
-    // 检查是否支持麦克风
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setMsg((p) => [...p, { role: 'error', content: '当前环境不支持麦克风。请使用文字输入，或使用 HTTPS 访问页面。', timestamp: Date.now() }])
+      setMsg((p) => [...p, { role: 'error', content: '当前环境不支持麦克风。请使用文字输入。', timestamp: Date.now() }])
       return
     }
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const r = new MediaRecorder(stream, { mimeType: 'audio/webm' })
@@ -136,7 +183,7 @@ export default function ChatPage() {
           const result = await voiceApi.asr(blob)
           if (result.text) await sendMessage(result.text)
           else {
-            setMsg((p) => [...p, { role: 'error', content: '未识别到语音内容，请重新录音或使用文字输入。', timestamp: Date.now() }])
+            setMsg((p) => [...p, { role: 'error', content: '未识别到语音内容，请使用文字输入。', timestamp: Date.now() }])
             setEmotion('neutral')
           }
         } catch {
@@ -153,13 +200,11 @@ export default function ChatPage() {
       const name = err?.name || ''
       let tip = ''
       if (name === 'NotAllowedError') {
-        tip = '麦克风权限被拒绝。请在浏览器地址栏左侧点击🔒图标 → 允许麦克风访问，然后刷新页面重试。'
+        tip = '麦克风权限被拒绝。请在浏览器地址栏左侧点击锁图标 → 允许麦克风访问。'
       } else if (name === 'NotFoundError') {
-        tip = '未检测到麦克风设备。请检查麦克风是否已插入并在系统设置中启用。'
-      } else if (name === 'NotReadableError') {
-        tip = '麦克风被其他应用占用。请关闭其他可能使用麦克风的程序后重试。'
+        tip = '未检测到麦克风设备。'
       } else {
-        tip = '无法访问麦克风。请使用文字输入，或检查系统隐私设置中是否允许浏览器使用麦克风。'
+        tip = '无法访问麦克风，请使用文字输入。'
       }
       setMsg((p) => [...p, { role: 'error', content: tip, timestamp: Date.now() }])
       setListening(false)
@@ -185,7 +230,6 @@ export default function ChatPage() {
 
   const speak = async (text: string, msgIdx: number) => {
     if (speakingIdxRef.current === msgIdx) { stopAudio(); return }
-
     playIdRef.current++
     const currentId = playIdRef.current
     speakingIdxRef.current = msgIdx
@@ -214,8 +258,12 @@ export default function ChatPage() {
       const url = URL.createObjectURL(ab)
       const a = new Audio(url)
       audioRef.current = a
-      a.onended = () => { if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1; setEmotion('happy'); URL.revokeObjectURL(url); audioRef.current = null } }
-      a.onerror = () => { if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1; setEmotion('neutral'); audioRef.current = null } }
+      a.onended = () => {
+        if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1; setEmotion('happy'); URL.revokeObjectURL(url); audioRef.current = null }
+      }
+      a.onerror = () => {
+        if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1; setEmotion('neutral'); audioRef.current = null }
+      }
       a.play()
     } catch {
       if (playIdRef.current !== currentId) return
@@ -228,6 +276,18 @@ export default function ChatPage() {
     }
   }
 
+  const submitFeedback = useCallback(async (rating: number, question: string, msgIdx: number) => {
+    if (ratedMessages.has(msgIdx)) return
+    setRatedMessages((prev) => new Set(prev).add(msgIdx))
+    try {
+      await fetch('/api/admin/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating, question }),
+      })
+    } catch { /* ignore network errors */ }
+  }, [ratedMessages])
+
   const clearHistory = () => {
     setMsg([{
       role: 'ai',
@@ -238,38 +298,83 @@ export default function ChatPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)' }}>
-      {/* 数字人头部栏 */}
-      <div style={{
-        background: 'linear-gradient(160deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-        padding: '10px 14px 12px',
-        display: 'flex', alignItems: 'center', gap: 10,
-      }}>
-        <div style={{ width: 48, height: 48 }}>
-          <DigitalHuman
-            speaking={speaking}
-            emotion={emotion}
-            listening={listening}
-            size={48}
-            visual={persona.visual}
-          />
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>
-            AI导游 · {persona.name}
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, marginTop: 1 }}>
-            {loading ? '正在思考...' : speaking ? '正在讲解...' : listening ? '正在聆听...' : `${persona.style} · 在线`}
-          </div>
-        </div>
+      {/* 3D数字人 iframe 区域 */}
+      {showIframe && (
         <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: loading ? '#f0ad4e' : speaking ? '#5cb85c' : listening ? '#d9534f' : '#4cd964',
-          boxShadow: `0 0 6px ${loading ? '#f0ad4e' : speaking ? '#5cb85c' : listening ? '#d9534f' : '#4cd964'}80`,
-        }} />
-      </div>
+          height: '42%', minHeight: 220, position: 'relative', background: '#0a0a1a',
+          flexShrink: 0,
+        }}>
+          <iframe
+            ref={iframeRef}
+            title="LAM Digital Human"
+            onLoad={() => { setIframeReady(true) }}
+            style={{
+              width: '100%', height: '100%', border: 'none',
+              opacity: iframeReady ? 1 : 0.3,
+              transition: 'opacity 0.5s',
+            }}
+            allow="microphone; camera; autoplay"
+          />
+
+          {/* 顶部状态栏 */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0,
+            padding: '6px 10px',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%)',
+            display: 'flex', alignItems: 'center', gap: 8, zIndex: 5,
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {persona.image && (
+                <img src={persona.image} alt={persona.name}
+                  style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover', objectPosition: 'center top' }}
+                />
+              )}
+              <span style={{ fontSize: 12, color: '#fff', fontWeight: 500 }}>{persona.name}</span>
+            </span>
+            <div style={{ flex: 1 }} />
+            <div style={{
+              width: 7, height: 7, borderRadius: '50%',
+              background: iframeReady ? '#4cd964' : '#f0ad4e',
+              boxShadow: `0 0 5px ${iframeReady ? '#4cd964' : '#f0ad4e'}80`,
+            }} />
+          </div>
+
+          {/* 加载中 */}
+          {!iframeReady && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+              gap: 8, background: '#0a0a1a', zIndex: 4,
+            }}>
+              <div style={{
+                width: 28, height: 28, borderRadius: '50%',
+                border: '2.5px solid rgba(255,255,255,0.1)',
+                borderTopColor: persona.color,
+                animation: 'spin 0.8s linear infinite',
+              }} />
+              <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                加载数字人...
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 消息列表 */}
       <div style={{ flex: 1, overflow: 'auto', padding: '10px 14px', background: '#faf7f2' }}>
+        {!showIframe && (
+          <div style={{
+            textAlign: 'center', marginBottom: 10, padding: '8px',
+            background: 'rgba(200,150,62,0.08)', borderRadius: 10,
+            fontSize: 12, color: '#9c948c',
+          }}>
+            数字人服务未连接 ·
+            <button onClick={() => { setShowIframe(true); setIframeReady(false); setLoadStamp(Date.now()) }}
+              style={{ border: 'none', background: 'transparent', color: '#c8963e', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
+              重试连接
+            </button>
+          </div>
+        )}
         {messages.length > 1 && (
           <div style={{ textAlign: 'center', marginBottom: 8 }}>
             <button
@@ -287,13 +392,25 @@ export default function ChatPage() {
             marginBottom: 12,
           }}>
             {m.role !== 'user' && (
-              <div style={{
-                width: 32, height: 32, borderRadius: '50%',
-                background: m.role === 'error' ? '#e88b7e' : persona.color,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, marginRight: 6, flexShrink: 0, marginTop: 2,
-                color: '#fff',
-              }}>{m.role === 'error' ? '!' : persona.emoji}</div>
+              m.role === 'error' ? (
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: '#e88b7e',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, marginRight: 6, flexShrink: 0, marginTop: 2,
+                  color: '#fff',
+                }}>!</div>
+              ) : (
+                <img
+                  src={persona.image}
+                  alt={persona.name}
+                  style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    objectFit: 'cover', objectPosition: 'center top',
+                    marginRight: 6, flexShrink: 0, marginTop: 2,
+                  }}
+                />
+              )
             )}
             <div style={{ maxWidth: '82%' }}>
               <div style={{
@@ -315,17 +432,42 @@ export default function ChatPage() {
                 ))}
               </div>
               {m.role === 'ai' && m.content && (
-                <button
-                  onClick={() => speak(m.content, i)}
-                  style={{
-                    marginTop: 3, padding: '3px 8px', borderRadius: 10,
-                    border: 'none', background: speakingIdx === i ? '#f8d7da' : 'transparent',
-                    color: speakingIdx === i ? '#d9534f' : '#9c948c', fontSize: 11,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {speakingIdx === i ? '⏹ 停止' : '🔊 播报'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                  <button
+                    onClick={() => speak(m.content, i)}
+                    style={{
+                      padding: '3px 8px', borderRadius: 10,
+                      border: 'none', background: speakingIdx === i ? '#f8d7da' : 'transparent',
+                      color: speakingIdx === i ? '#d9534f' : '#9c948c', fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {speakingIdx === i ? '⏹ 停止' : '🔊 播报'}
+                  </button>
+                  <span style={{ color: '#e8e3db', fontSize: 11 }}>|</span>
+                  <button
+                    onClick={() => submitFeedback(1, m.content, i)}
+                    disabled={ratedMessages.has(i)}
+                    style={{
+                      padding: '2px 6px', borderRadius: 8, border: 'none',
+                      background: 'transparent', cursor: ratedMessages.has(i) ? 'default' : 'pointer',
+                      fontSize: 14, opacity: ratedMessages.has(i) ? 0.4 : 1,
+                      lineHeight: 1,
+                    }}
+                    title="有帮助"
+                  >👍</button>
+                  <button
+                    onClick={() => submitFeedback(-1, m.content, i)}
+                    disabled={ratedMessages.has(i)}
+                    style={{
+                      padding: '2px 6px', borderRadius: 8, border: 'none',
+                      background: 'transparent', cursor: ratedMessages.has(i) ? 'default' : 'pointer',
+                      fontSize: 14, opacity: ratedMessages.has(i) ? 0.4 : 1,
+                      lineHeight: 1,
+                    }}
+                    title="不准确"
+                  >👎</button>
+                </div>
               )}
               {m.role === 'error' && m.content.includes('API Key') && (
                 <button
@@ -335,9 +477,7 @@ export default function ChatPage() {
                     border: 'none', background: 'transparent', color: '#c8963e', fontSize: 11,
                     cursor: 'pointer', textDecoration: 'underline',
                   }}
-                >
-                  获取API Key
-                </button>
+                >获取API Key</button>
               )}
             </div>
             {m.role === 'user' && (
@@ -398,6 +538,8 @@ export default function ChatPage() {
           >➤</button>
         </div>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

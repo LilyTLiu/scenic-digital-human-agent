@@ -1,75 +1,126 @@
-import { Card, Row, Col, Typography, Table, Tag } from 'antd'
+import { useState, useEffect } from 'react'
+import { Card, Row, Col, Typography, Table, Tag, Statistic } from 'antd'
+import { SmileOutlined, FrownOutlined, LikeOutlined, MessageOutlined } from '@ant-design/icons'
+import { adminApi } from '../../services/api'
 
-const { Title, Paragraph } = Typography
+const { Title } = Typography
 
-const sentimentData = [
-  { key: '1', date: '2025-12-04', positive: 78, neutral: 15, negative: 7, topTopic: '灵山大佛' },
-  { key: '2', date: '2025-12-03', positive: 82, neutral: 12, negative: 6, topTopic: '九龙灌浴' },
-  { key: '3', date: '2025-12-02', positive: 75, neutral: 18, negative: 7, topTopic: '梵宫艺术' },
-  { key: '4', date: '2025-12-01', positive: 80, neutral: 14, negative: 6, topTopic: '游览路线' },
-  { key: '5', date: '2025-11-30', positive: 71, neutral: 20, negative: 9, topTopic: '餐饮服务' },
-]
-
-const columns = [
-  { title: '日期', dataIndex: 'date', key: 'date' },
-  {
-    title: '正面', dataIndex: 'positive', key: 'positive',
-    render: (v: number) => <Tag color="green">{v}%</Tag>,
-  },
-  {
-    title: '中性', dataIndex: 'neutral', key: 'neutral',
-    render: (v: number) => <Tag color="blue">{v}%</Tag>,
-  },
-  {
-    title: '负面', dataIndex: 'negative', key: 'negative',
-    render: (v: number) => <Tag color="red">{v}%</Tag>,
-  },
-  { title: '热门话题', dataIndex: 'topTopic', key: 'topTopic' },
-]
+interface ReportData {
+  total_feedback: number
+  likes: number
+  dislikes: number
+  satisfaction: number
+  recent: { rating: number; question: string; time: string }[]
+  daily_trend: { date: string; rate: number }[]
+}
 
 export default function ReportPage() {
+  const [data, setData] = useState<ReportData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    adminApi.getReports()
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const columns = [
+    { title: '问题内容', dataIndex: 'question', key: 'question', ellipsis: true },
+    {
+      title: '评分', dataIndex: 'rating', key: 'rating', width: 80,
+      render: (v: number) => v === 1
+        ? <Tag color="green">👍 满意</Tag>
+        : <Tag color="red">👎 不满意</Tag>,
+    },
+    { title: '时间', dataIndex: 'time', key: 'time', width: 160, render: (v: string) => v?.slice(0, 19) },
+  ]
+
+  const maxRate = data?.daily_trend?.length
+    ? Math.max(...data.daily_trend.map((d) => d.rate), 1)
+    : 1
+
   return (
     <div>
       <Title level={4}>游客反馈报告</Title>
-      <Paragraph type="secondary">基于AI分析的游客交互情感趋势与服务建议</Paragraph>
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 36, color: '#52c41a' }}>77.2%</div>
-              <div>整体正面情感占比</div>
-            </div>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic title="满意度" value={data?.satisfaction || 0}
+              suffix="%" prefix={<SmileOutlined />} precision={1} />
           </Card>
         </Col>
-        <Col span={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 36, color: '#1677ff' }}>12</div>
-              <div>本周新增关注话题</div>
-            </div>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic title="好评数" value={data?.likes || 0}
+              prefix={<LikeOutlined />} valueStyle={{ color: '#52c41a' }} />
           </Card>
         </Col>
-        <Col span={8}>
-          <Card>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: 36, color: '#faad14' }}>5</div>
-              <div>待优化服务项</div>
-            </div>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic title="差评数" value={data?.dislikes || 0}
+              prefix={<FrownOutlined />} valueStyle={{ color: '#ff4d4f' }} />
+          </Card>
+        </Col>
+        <Col xs={12} sm={6}>
+          <Card loading={loading}>
+            <Statistic title="总反馈数" value={data?.total_feedback || 0}
+              prefix={<MessageOutlined />} />
           </Card>
         </Col>
       </Row>
 
-      <Card title="每日情感趋势">
-        <Table dataSource={sentimentData} columns={columns} pagination={false} size="small" />
-      </Card>
+      <Row gutter={16}>
+        <Col xs={24} md={12}>
+          <Card title="近7天满意度趋势" loading={loading} style={{ marginBottom: 24 }}>
+            {data?.daily_trend?.length ? (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 160, paddingTop: 8 }}>
+                {data.daily_trend.map((d, i) => (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: d.rate >= 50 ? '#52c41a' : '#ff4d4f', marginBottom: 4 }}>
+                      {d.rate}%
+                    </span>
+                    <div style={{
+                      width: '100%', maxWidth: 40,
+                      height: `${Math.max((d.rate / maxRate) * 120, 4)}px`,
+                      background: d.rate >= 50
+                        ? 'linear-gradient(180deg, #52c41a, #95de64)'
+                        : 'linear-gradient(180deg, #ff4d4f, #ff9c9c)',
+                      borderRadius: '4px 4px 0 0', transition: 'height 0.5s',
+                    }} />
+                    <span style={{ fontSize: 10, color: '#999', marginTop: 6 }}>{d.date}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc' }}>
+                暂无反馈数据
+              </div>
+            )}
+          </Card>
+        </Col>
+
+        <Col xs={24} md={12}>
+          <Card title="最近反馈记录" loading={loading} style={{ marginBottom: 24 }}>
+            <Table
+              dataSource={data?.recent || []}
+              columns={columns}
+              rowKey={(_: any, i?: number) => String(i)}
+              pagination={false}
+              size="small"
+              locale={{ emptyText: '暂无反馈记录' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       <Card title="服务建议" style={{ marginTop: 16 }}>
-        <ul style={{ paddingLeft: 20 }}>
-          <li style={{ marginBottom: 8 }}>增加"九龙灌浴表演时间"相关知识的覆盖，该问题近期提问量上升</li>
-          <li style={{ marginBottom: 8 }}>优化"餐饮推荐"类问题的回答质量，游客满意度略低</li>
-          <li style={{ marginBottom: 8 }}>考虑增加英文版本数字人，满足国际游客需求</li>
-          <li>定期更新节假日特别活动信息到知识库</li>
+        <ul style={{ paddingLeft: 20, fontSize: 13, color: '#666', lineHeight: 2 }}>
+          <li>游客在AI对话界面可对每条回复进行 👍👎 评分</li>
+          <li>评分数据实时汇总到本页面，用于分析游客满意度趋势</li>
+          <li>低满意度时段可针对性优化知识库内容和回复策略</li>
+          <li>定期检查差评问题，补充缺失知识点到知识库</li>
         </ul>
       </Card>
     </div>

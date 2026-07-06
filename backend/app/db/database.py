@@ -15,6 +15,7 @@ class ChatRecord(Base):
     __tablename__ = "chat_records"
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String(64))
+    user_id = Column(Integer, nullable=True)
     scenic_spot = Column(String(128))
     user_input = Column(Text)
     ai_reply = Column(Text)
@@ -45,9 +46,48 @@ class DigitalHumanConfig(Base):
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 
+class User(Base):
+    """用户 - 手机号登录"""
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    phone = Column(String(20), unique=True, nullable=False)
+    nickname = Column(String(64))
+    avatar = Column(String(512))
+    token = Column(String(128), unique=True)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+
+class UserPreference(Base):
+    """用户偏好"""
+    __tablename__ = "user_preferences"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, nullable=False)
+    interests = Column(Text)  # JSON: ["佛教文化","建筑艺术"]
+    travel_style = Column(String(32))  # 深度游/轻松游/亲子游
+    group_type = Column(String(32))  # 独自/情侣/家庭/朋友
+    updated_at = Column(DateTime, default=datetime.datetime.now)
+
+
+class Feedback(Base):
+    """游客满意度反馈"""
+    __tablename__ = "feedbacks"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    rating = Column(Integer)  # 1=点赞, -1=踩
+    question = Column(Text)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     Base.metadata.create_all(engine)
+    # 兼容旧表：为 chat_records 添加 user_id 列（若不存在）
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE chat_records ADD COLUMN user_id INTEGER"))
+            conn.commit()
+    except Exception:
+        pass  # 列已存在则忽略
 
 
 def get_db():
@@ -56,3 +96,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# 启动时自动建表（仅创建不存在的表，不影响已有数据）
+init_db()

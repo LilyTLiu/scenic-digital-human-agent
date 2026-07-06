@@ -3,7 +3,7 @@
  * 不再需要单独的"导游选择"和"声线选择"——选人即选声
  */
 
-export type PersonaId = 'xiaoling' | 'huijue' | 'miaoyin'
+export type PersonaId = 'xiaoling' | 'xiaoshan' | 'miaoyin' | 'xiaochan'
 
 export interface Persona {
   id: PersonaId
@@ -14,6 +14,8 @@ export interface Persona {
   emoji: string
   /** edge-tts voice name */
   voice: string
+  /** 角色照片 */
+  image?: string
   /** Canvas 视觉特征 */
   visual: {
     hairColor: string
@@ -23,6 +25,8 @@ export interface Persona {
     glasses: boolean
     gender: 'female' | 'male'
   }
+  /** Ready Player Me avatar GLB URL for 3D rendering */
+  avatar3d?: string
 }
 
 export const PERSONAS: Record<PersonaId, Persona> = {
@@ -34,6 +38,8 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     color: '#c8963e',
     emoji: '👩‍💼',
     voice: 'zh-CN-XiaoxiaoNeural',
+    image: '/character/xiaoling.png',
+    avatar3d: '/avatars/brunette.glb',
     visual: {
       hairColor: '#4a2a15',
       hairStyle: 'long',
@@ -43,14 +49,16 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       gender: 'female',
     },
   },
-  huijue: {
-    id: 'huijue',
-    name: '慧觉',
+  xiaoshan: {
+    id: 'xiaoshan',
+    name: '小山',
     role: '佛学文化顾问',
     style: '沉稳博学',
     color: '#5d7a8e',
     emoji: '🧘',
     voice: 'zh-CN-YunxiNeural',
+    image: '/character/xiaoshan.png',
+    avatar3d: '/avatars/avaturn.glb',
     visual: {
       hairColor: '#4a4a4a',
       hairStyle: 'short',
@@ -68,6 +76,8 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     color: '#5d8a7b',
     emoji: '👩‍🎨',
     voice: 'zh-CN-XiaoyiNeural',
+    image: '/character/miaoyin.png',
+    avatar3d: '/avatars/brunette-t.glb',
     visual: {
       hairColor: '#1a1a2e',
       hairStyle: 'long',
@@ -77,9 +87,28 @@ export const PERSONAS: Record<PersonaId, Persona> = {
       gender: 'female',
     },
   },
+  xiaochan: {
+    id: 'xiaochan',
+    name: '小禅',
+    role: '禅修体验向导',
+    style: '禅意智慧',
+    color: '#7a6a5a',
+    emoji: '🧘‍♂️',
+    voice: 'zh-CN-YunjianNeural',
+    image: '/character/xiaochan.png',
+    avatar3d: '/avatars/avatarsdk.glb',
+    visual: {
+      hairColor: '#3a3a3a',
+      hairStyle: 'short',
+      skinTone: '#e8dcc8',
+      collarColor: '#9a8a7a',
+      glasses: false,
+      gender: 'male',
+    },
+  },
 }
 
-export const DEFAULT_PERSONA: PersonaId = 'xiaoling'
+export const DEFAULT_PERSONA: PersonaId = 'miaoyin'
 
 export function getPersona(id: string | null | undefined): Persona {
   if (id && id in PERSONAS) return PERSONAS[id as PersonaId]

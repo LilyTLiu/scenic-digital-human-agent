@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import DigitalHuman, { Emotion } from '../../components/DigitalHuman'
+import type { Emotion } from '../../components/DigitalHuman'
 import { voiceApi } from '../../services/api'
 import { getPersona, DEFAULT_PERSONA } from '../../config/personas'
 import { findBestVoice, findFallbackVoice } from '../../utils/voice'
@@ -153,6 +153,7 @@ export default function TourPage() {
   const [showDetail, setShowDetail] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const playIdRef = useRef(0)
+  const mapRef = useRef<HTMLDivElement>(null)
 
   // 读取路线参数
   const routeIdx = parseInt(searchParams.get('route') || '', 10)
@@ -233,6 +234,25 @@ export default function TourPage() {
     handleSpotClick(selectedSpot)
   }, [selectedSpot, handleSpotClick])
 
+  // 地图点击：通过坐标计算最近景点，避开按钮定位/transform的移动端兼容问题
+  const handleMapClick = useCallback((e: React.MouseEvent) => {
+    const rect = mapRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const xPercent = ((e.clientX - rect.left) / rect.width) * 100
+    const yPercent = ((e.clientY - rect.top) / rect.height) * 100
+    let nearest: ScenicSpot | null = null
+    let minDist = Infinity
+    for (const spot of SCENIC_SPOTS) {
+      // 路线模式下只响应路线内景点
+      if (activeRoute && !activeRoute.stops.includes(spot.id)) continue
+      const dx = spot.mapX - xPercent
+      const dy = spot.mapY - yPercent
+      const dist = Math.sqrt(dx * dx + dy * dy)
+      if (dist < minDist) { minDist = dist; nearest = spot }
+    }
+    if (nearest && minDist < 12) handleSpotClick(nearest)
+  }, [handleSpotClick, activeRoute])
+
   return (
     <div className="page-enter" style={{ height: 'calc(100vh - 60px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Map header */}
@@ -258,56 +278,80 @@ export default function TourPage() {
         </span>
       </div>
 
-      {/* Map area */}
-      <div style={{
-        flex: 1, position: 'relative', overflow: 'hidden',
-        background: 'linear-gradient(180deg, #e8f0e8 0%, #d5e8d0 15%, #eaf4e8 30%, #d8e8f0 50%, #e8f0e8 70%, #f0e8d8 100%)',
-      }}>
-        {/* Decorative terrain */}
-        <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} viewBox="0 0 400 700" preserveAspectRatio="xMidYMid slice">
-          {/* Mountains - north */}
-          <polygon points="0,180 80,80 160,140 240,60 320,120 400,90 400,250 0,250" fill="rgba(180,200,170,0.3)" />
-          <polygon points="0,200 100,140 180,170 280,120 400,150 400,280 0,280" fill="rgba(190,210,180,0.2)" />
-          {/* Water - south */}
-          <ellipse cx="200" cy="620" rx="180" ry="40" fill="rgba(140,190,220,0.25)" />
-          {/* Water - west lake */}
-          <ellipse cx="80" cy="460" rx="70" ry="55" fill="rgba(140,190,220,0.3)" />
-          {/* Paths connecting spots */}
-          <path d="M200,600 L200,530 L200,470 L200,390 L200,280" stroke="rgba(180,160,140,0.5)" strokeWidth="2" strokeDasharray="6,4" fill="none"/>
-          <path d="M200,470 L100,440 L60,430" stroke="rgba(180,160,140,0.5)" strokeWidth="2" strokeDasharray="6,4" fill="none"/>
-          <path d="M200,470 L300,440 L340,430" stroke="rgba(180,160,140,0.5)" strokeWidth="2" strokeDasharray="6,4" fill="none"/>
-          <path d="M60,430 L60,530" stroke="rgba(180,160,140,0.4)" strokeWidth="1.5" strokeDasharray="6,4" fill="none"/>
-          <path d="M340,430 L340,530" stroke="rgba(180,160,140,0.4)" strokeWidth="1.5" strokeDasharray="6,4" fill="none"/>
-          {/* Labels */}
-          <text x="200" y="155" textAnchor="middle" fontSize="10" fill="rgba(0,0,0,0.2)">秦履峰</text>
-          <text x="360" y="640" textAnchor="end" fontSize="9" fill="rgba(0,0,0,0.2)">香水海</text>
-        </svg>
+      {/* Map area - coordinate-based clicking avoids button positioning/touch issues */}
+      <div ref={mapRef} onClick={handleMapClick} style={{ flex: 1, position: 'relative', cursor: 'pointer' }}>
+        {/* Clipped layer: background + decorative SVGs (pointerEvents:none passes clicks through) */}
+        <div style={{
+          position: 'absolute', inset: 0, overflow: 'hidden',
+          background: 'linear-gradient(180deg, #e8f0e8 0%, #d5e8d0 15%, #eaf4e8 30%, #d8e8f0 50%, #e8f0e8 70%, #f0e8d8 100%)',
+          pointerEvents: 'none',
+        }}>
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <svg style={{ width: '100%', height: '100%' }} viewBox="0 0 400 700" preserveAspectRatio="xMidYMid slice">
+              <polygon points="0,180 80,80 160,140 240,60 320,120 400,90 400,250 0,250" fill="rgba(180,200,170,0.3)" />
+              <polygon points="0,200 100,140 180,170 280,120 400,150 400,280 0,280" fill="rgba(190,210,180,0.2)" />
+              <ellipse cx="200" cy="620" rx="180" ry="40" fill="rgba(140,190,220,0.25)" />
+              <ellipse cx="80" cy="460" rx="70" ry="55" fill="rgba(140,190,220,0.3)" />
+              <path d="M200,600 L200,530 L200,470 L200,390 L200,280" stroke="rgba(180,160,140,0.5)" strokeWidth="2" strokeDasharray="6,4" fill="none"/>
+              <path d="M200,470 L100,440 L60,430" stroke="rgba(180,160,140,0.5)" strokeWidth="2" strokeDasharray="6,4" fill="none"/>
+              <path d="M200,470 L300,440 L340,430" stroke="rgba(180,160,140,0.5)" strokeWidth="2" strokeDasharray="6,4" fill="none"/>
+              <path d="M60,430 L60,530" stroke="rgba(180,160,140,0.4)" strokeWidth="1.5" strokeDasharray="6,4" fill="none"/>
+              <path d="M340,430 L340,530" stroke="rgba(180,160,140,0.4)" strokeWidth="1.5" strokeDasharray="6,4" fill="none"/>
+              <text x="200" y="155" textAnchor="middle" fontSize="10" fill="rgba(0,0,0,0.2)">秦履峰</text>
+              <text x="360" y="640" textAnchor="end" fontSize="9" fill="rgba(0,0,0,0.2)">香水海</text>
+            </svg>
+          </div>
+          {activeRoute && (
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <svg style={{ width: '100%', height: '100%' }}>
+                {activeRoute.stops.map((stopId, i) => {
+                  if (i >= activeRoute.stops.length - 1) return null
+                  const from = SCENIC_SPOTS.find(s => s.id === stopId)
+                  const to = SCENIC_SPOTS.find(s => s.id === activeRoute.stops[i + 1])
+                  if (!from || !to) return null
+                  const x1 = from.mapX; const y1 = from.mapY
+                  const x2 = to.mapX; const y2 = to.mapY
+                  const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2
+                  const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI
+                  return (
+                    <g key={`arr-${stopId}`}>
+                      <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}
+                        stroke={activeRoute.color} strokeWidth="2.5" strokeDasharray="8,4"
+                        opacity="0.6" strokeLinecap="round"
+                      />
+                      <polygon
+                        points="-5,-3 5,0 -5,3"
+                        fill={activeRoute.color}
+                        opacity="0.7"
+                        transform={`translate(${mx}%,${my}%) rotate(${angle})`}
+                      />
+                    </g>
+                  )
+                })}
+              </svg>
+            </div>
+          )}
+        </div>
 
-        {/* Spot markers */}
+        {/* Visual spot markers (not clickable - map onClick handles all touches) */}
         {SCENIC_SPOTS.map((spot) => {
           const isActive = activeSpot === spot.id
           const routeOrder = routeSpotOrder[spot.id]
           const inRoute = !!routeOrder
           return (
-            <button
+            <div
               key={spot.id}
-              onClick={() => handleSpotClick(spot)}
               style={{
                 position: 'absolute',
                 left: `${spot.mapX}%`,
                 top: `${spot.mapY}%`,
                 transform: 'translate(-50%, -50%)',
                 display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 2, cursor: 'pointer', border: 'none',
-                background: 'transparent', padding: 0,
-                zIndex: isActive ? 10 : inRoute ? 5 : 1,
-                transition: 'transform 0.2s',
+                gap: 2, pointerEvents: 'none',
+                zIndex: 10,
                 opacity: activeRoute && !inRoute ? 0.45 : 1,
               }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1.1)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translate(-50%, -50%) scale(1)' }}
             >
-              {/* Marker pin */}
               <div style={{
                 width: isActive ? 36 : inRoute ? 32 : 28,
                 height: isActive ? 36 : inRoute ? 32 : 28,
@@ -333,7 +377,6 @@ export default function TourPage() {
                   </span>
                 )}
               </div>
-              {/* Label */}
               <span style={{
                 fontSize: 10, fontWeight: isActive ? 700 : inRoute ? 600 : 500,
                 color: inRoute ? activeRoute!.color : (isActive ? spot.color : '#5c5348'),
@@ -342,41 +385,9 @@ export default function TourPage() {
                 whiteSpace: 'nowrap',
                 transition: 'all 0.2s',
               }}>{spot.name}</span>
-            </button>
+            </div>
           )
         })}
-
-        {/* Route connecting arrows (SVG overlay) */}
-        {activeRoute && (
-          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3 }}>
-            {activeRoute.stops.map((stopId, i) => {
-              if (i >= activeRoute.stops.length - 1) return null
-              const from = SCENIC_SPOTS.find(s => s.id === stopId)
-              const to = SCENIC_SPOTS.find(s => s.id === activeRoute.stops[i + 1])
-              if (!from || !to) return null
-              // Calculate positions in percentage
-              const x1 = from.mapX; const y1 = from.mapY
-              const x2 = to.mapX; const y2 = to.mapY
-              const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2
-              const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI
-              return (
-                <g key={`arr-${stopId}`}>
-                  <line x1={`${x1}%`} y1={`${y1}%`} x2={`${x2}%`} y2={`${y2}%`}
-                    stroke={activeRoute.color} strokeWidth="2.5" strokeDasharray="8,4"
-                    opacity="0.6" strokeLinecap="round"
-                  />
-                  {/* Arrowhead at midpoint */}
-                  <polygon
-                    points="-5,-3 5,0 -5,3"
-                    fill={activeRoute.color}
-                    opacity="0.7"
-                    transform={`translate(${mx}%,${my}%) rotate(${angle})`}
-                  />
-                </g>
-              )
-            })}
-          </svg>
-        )}
       </div>
 
       {/* Digital human + detail panel */}
@@ -392,8 +403,10 @@ export default function TourPage() {
             padding: '8px 14px',
             background: `linear-gradient(135deg, ${selectedSpot.color}12, ${selectedSpot.color}08)`,
           }}>
-            <div style={{ width: 52, height: 52, flexShrink: 0 }}>
-              <DigitalHuman speaking={speaking} emotion={emotion} size={52} visual={persona.visual} />
+            <div style={{ width: 52, height: 52, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+              {persona.image && (
+                <img src={persona.image} alt={persona.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }} />
+              )}
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: selectedSpot.color }}>
