@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import chat, voice, admin, upload, user
+from app.db.database import init_db
+
+init_db()
 
 app = FastAPI(
     title="AI数字人智能导游系统",

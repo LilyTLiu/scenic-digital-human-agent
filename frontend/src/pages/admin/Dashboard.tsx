@@ -1,173 +1,165 @@
-import { useState, useEffect } from 'react'
-import { Card, Row, Col, Statistic, Table, Typography, Modal } from 'antd'
-import { TeamOutlined, QuestionCircleOutlined, MessageOutlined, BarChartOutlined, UserOutlined } from '@ant-design/icons'
+import { useEffect, useState } from 'react'
+import { Card, Row, Col, Statistic, Table, Typography, Spin } from 'antd'
+import {
+  TeamOutlined, QuestionCircleOutlined, MessageOutlined,
+  DatabaseOutlined, UserOutlined,
+} from '@ant-design/icons'
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, BarChart, Bar,
+} from 'recharts'
 import { adminApi } from '../../services/api'
 
 const { Title } = Typography
 
 interface DashboardData {
-  today_visitors: number
-  week_visitors: number
-  today_tourists: number
-  week_tourists: number
-  hot_questions: { question: string; count: number }[]
+  total_chats: number
+  total_knowledge: number
+  today_chats: number
+  total_sessions: number
+  hot_keywords: string[]
   daily_trend: { date: string; count: number }[]
-  total_questions: number
-}
-
-interface TouristInfo {
-  user_id: number
-  phone: string
-  nickname: string
-  msg_count: number
-  last_active: string
+  hourly_trend: { hour: string; count: number }[]
 }
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [tourists, setTourists] = useState<TouristInfo[]>([])
-  const [touristModalOpen, setTouristModalOpen] = useState(false)
 
   useEffect(() => {
     adminApi.getDashboard()
       .then(setData)
-      .catch(() => {})
+      .catch((e) => console.error('Dashboard fetch failed:', e))
       .finally(() => setLoading(false))
   }, [])
 
-  const openTouristList = async () => {
-    setTouristModalOpen(true)
-    try {
-      const res = await adminApi.getTourists()
-      setTourists(res.tourists || [])
-    } catch {
-      // ignore
-    }
-  }
+  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
+  if (!data) return <div style={{ textAlign: 'center', padding: 80, color: '#999' }}>数据加载失败，请确认后端已启动</div>
 
-  const hotColumns = [
-    { title: '热门问题', dataIndex: 'question', key: 'question' },
-    { title: '提问次数', dataIndex: 'count', key: 'count', width: 100 },
+  const keywordColumns = [
+    { title: '热门问题', dataIndex: 'text', key: 'text', ellipsis: true },
+    { title: '排名', dataIndex: 'rank', key: 'rank', width: 60, align: 'center' as const },
   ]
 
-  const touristColumns = [
-    { title: '昵称', dataIndex: 'nickname', key: 'nickname' },
-    { title: '手机号', dataIndex: 'phone', key: 'phone' },
-    { title: '提问次数', dataIndex: 'msg_count', key: 'msg_count', width: 80 },
-    { title: '最近活跃', dataIndex: 'last_active', key: 'last_active', width: 160, render: (v: string) => v?.slice(0, 19) },
-  ]
-
-  const maxCount = data?.daily_trend?.length
-    ? Math.max(...data.daily_trend.map((d) => d.count), 1)
-    : 1
+  const keywordData = data.hot_keywords
+    .filter(Boolean)
+    .map((k, i) => ({ key: i, text: k, rank: i + 1 }))
 
   return (
     <div>
       <Title level={4}>数据大屏</Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col xs={12} sm={4}>
-          <Card loading={loading}>
-            <Statistic title="今日服务人次" value={data?.today_visitors || 0} prefix={<TeamOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={4}>
-          <Card loading={loading}>
-            <Statistic title="本周服务人次" value={data?.week_visitors || 0} prefix={<TeamOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={4}>
-          <Card loading={loading}>
-            <Statistic title="累计问答数" value={data?.total_questions || 0} prefix={<MessageOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={4}>
-          <Card loading={loading}>
-            <Statistic title="热门问题数" value={data?.hot_questions?.length || 0} prefix={<QuestionCircleOutlined />} />
-          </Card>
-        </Col>
-        <Col xs={12} sm={4}>
-          <Card
-            loading={loading}
-            hoverable
-            onClick={openTouristList}
-            style={{ cursor: 'pointer' }}
-          >
+      {/* ── 统计卡片 ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={12} sm={8} md={4}>
+          <Card>
             <Statistic
-              title="服务游客数 ▼"
-              value={data?.today_tourists || 0}
+              title="今日对话"
+              value={data.today_chats}
+              prefix={<MessageOutlined />}
+              valueStyle={{ color: '#c8963e' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={5}>
+          <Card>
+            <Statistic
+              title="累计对话"
+              value={data.total_chats}
+              prefix={<TeamOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} sm={8} md={5}>
+          <Card>
+            <Statistic
+              title="对话会话"
+              value={data.total_sessions}
               prefix={<UserOutlined />}
             />
           </Card>
         </Col>
-      </Row>
-
-      <Row gutter={16}>
-        <Col xs={24} md={12}>
-          <Card
-            title={<span><BarChartOutlined /> 近7天服务趋势</span>}
-            loading={loading}
-            style={{ marginBottom: 24 }}
-          >
-            {data?.daily_trend?.length ? (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 180, paddingTop: 8 }}>
-                {data.daily_trend.map((d, i) => (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>{d.count}</span>
-                    <div style={{
-                      width: '100%', maxWidth: 40,
-                      height: `${Math.max((d.count / maxCount) * 140, 4)}px`,
-                      background: 'linear-gradient(180deg, #c8963e, #e8c97a)',
-                      borderRadius: '4px 4px 0 0',
-                      transition: 'height 0.5s',
-                    }} />
-                    <span style={{ fontSize: 10, color: '#999', marginTop: 6 }}>{d.date}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc' }}>
-                暂无数据
-              </div>
-            )}
+        <Col xs={12} sm={8} md={5}>
+          <Card>
+            <Statistic
+              title="知识条目"
+              value={data.total_knowledge}
+              prefix={<DatabaseOutlined />}
+            />
           </Card>
         </Col>
-
-        <Col xs={24} md={12}>
-          <Card
-            title={<span><MessageOutlined /> 今日热门问答 Top5</span>}
-            loading={loading}
-            style={{ marginBottom: 24 }}
-          >
-            <Table
-              dataSource={data?.hot_questions || []}
-              columns={hotColumns}
-              rowKey="question"
-              pagination={false}
-              size="small"
-              locale={{ emptyText: '暂无数据' }}
+        <Col xs={12} sm={8} md={5}>
+          <Card>
+            <Statistic
+              title="热门话题"
+              value={keywordData.length}
+              prefix={<QuestionCircleOutlined />}
+              valueStyle={{ color: '#5d7a8e' }}
             />
           </Card>
         </Col>
       </Row>
 
-      <Modal
-        title="服务游客列表"
-        open={touristModalOpen}
-        onCancel={() => setTouristModalOpen(false)}
-        footer={null}
-        width={700}
-      >
-        <Table
-          dataSource={tourists}
-          columns={touristColumns}
-          rowKey="user_id"
-          pagination={false}
-          size="small"
-          locale={{ emptyText: '暂无已登录游客记录' }}
-        />
-      </Modal>
+      {/* ── 趋势图表 ── */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} lg={12}>
+          <Card title="近 7 天对话趋势">
+            <ResponsiveContainer width="100%" height={260}>
+              <LineChart data={data.daily_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0ebe0" />
+                <XAxis dataKey="date" fontSize={12} />
+                <YAxis allowDecimals={false} fontSize={12} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: '1px solid #f0ebe0' }}
+                  formatter={(v) => [`${v} 次`, '对话量']}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#c8963e"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: '#c8963e' }}
+                  activeDot={{ r: 6 }}
+                  name="对话量"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title="今日时段分布 (8:00-21:00)">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={data.hourly_trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0ebe0" />
+                <XAxis dataKey="hour" fontSize={11} angle={-45} textAnchor="end" height={50} />
+                <YAxis allowDecimals={false} fontSize={12} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: '1px solid #f0ebe0' }}
+                  formatter={(v) => [`${v} 次`, '对话量']}
+                />
+                <Bar dataKey="count" fill="#5d7a8e" radius={[4, 4, 0, 0]} name="对话量" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* ── 热门问题排行 ── */}
+      <Card title={<span><QuestionCircleOutlined /> 热门问题排行</span>}>
+        {keywordData.length > 0 ? (
+          <Table
+            dataSource={keywordData}
+            columns={keywordColumns}
+            pagination={false}
+            size="small"
+            locale={{ emptyText: '暂无数据，开始使用后自动统计' }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center', padding: 32, color: '#999' }}>
+            暂无数据 — 游客开始提问后自动统计热门问题
+          </div>
+        )}
+      </Card>
     </div>
   )
 }

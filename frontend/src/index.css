@@ -129,3 +129,68 @@ html, body, #root {
 
 /* 滚动条 */
 ::-webkit-scrollbar { width: 0; height: 0; }
+
+/* === 动画 === */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInLeft {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeInRight {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes tabBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes breathingBorder {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(200,150,62,0.3), 0 0 8px rgba(200,150,62,0.1); }
+  50% { box-shadow: 0 0 0 4px rgba(200,150,62,0.5), 0 0 16px rgba(200,150,62,0.25); }
+}
+@keyframes soundWave {
+  0% { transform: scale(0.8); opacity: 0.6; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+@keyframes typingDot {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* 消息动画 */
+.msg-fade-in { animation: fadeInUp 0.3s ease-out; }
+.msg-ai-in  { animation: fadeInLeft 0.3s ease-out; }
+.msg-user-in { animation: fadeInRight 0.3s ease-out; }
+
+/* 毛玻璃 */
+.glass {
+  background: rgba(255,255,255,0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.glass-dark {
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* 呼吸灯 */
+.breathing-border { animation: breathingBorder 2s ease-in-out infinite; }
+
+/* 声波纹 */
+.sound-wave-ring {
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid rgba(200,150,62,0.4);
+  animation: soundWave 1.2s ease-out infinite;
+  pointer-events: none;
+}
+
+/* 底部导航动效 */
+.tab-item.active { animation: tabBounce 0.3s ease-out; }

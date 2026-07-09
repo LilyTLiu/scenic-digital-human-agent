@@ -6,12 +6,12 @@ import HomePage from './pages/tourist/HomePage'
 import ChatPage from './pages/tourist/ChatPage'
 import RecommendPage from './pages/tourist/RecommendPage'
 import TourPage from './pages/tourist/TourPage'
-import DigitalHumanPage from './pages/tourist/DigitalHumanPage'
-import FAQPage from './pages/tourist/FAQPage'
+import RealHumanPage from './pages/tourist/RealHumanPage'
 import Dashboard from './pages/admin/Dashboard'
 import KnowledgeBase from './pages/admin/KnowledgeBase'
 import DigitalHuman from './pages/admin/DigitalHuman'
 import ReportPage from './pages/admin/ReportPage'
+import ScenicSpots from './pages/admin/ScenicSpots'
 
 export default function App() {
   return (
@@ -23,12 +23,12 @@ export default function App() {
           <Route path="chat" element={<ChatPage />} />
           <Route path="tour" element={<TourPage />} />
           <Route path="recommend" element={<RecommendPage />} />
-          <Route path="digital-human" element={<DigitalHumanPage />} />
-          <Route path="faq" element={<FAQPage />} />
+          <Route path="real" element={<RealHumanPage />} />
         </Route>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<Dashboard />} />
           <Route path="knowledge" element={<KnowledgeBase />} />
+          <Route path="scenic-spots" element={<ScenicSpots />} />
           <Route path="digital-human" element={<DigitalHuman />} />
           <Route path="reports" element={<ReportPage />} />
         </Route>

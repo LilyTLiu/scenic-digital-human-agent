@@ -1,127 +1,100 @@
-import { useState, useEffect } from 'react'
-import { Card, Row, Col, Typography, Table, Tag, Statistic } from 'antd'
-import { SmileOutlined, FrownOutlined, LikeOutlined, MessageOutlined } from '@ant-design/icons'
+import { useEffect, useState } from 'react'
+import { Card, Row, Col, Typography, Table, Tag, Spin } from 'antd'
+import { LikeOutlined, DislikeOutlined, CommentOutlined } from '@ant-design/icons'
 import { adminApi } from '../../services/api'
 
 const { Title } = Typography
 
-interface ReportData {
-  total_feedback: number
-  likes: number
-  dislikes: number
-  satisfaction: number
-  recent: { rating: number; question: string; time: string }[]
-  daily_trend: { date: string; rate: number }[]
+interface ChatRecord {
+  id: number; session_id: string; scenic_spot: string
+  user_input: string; ai_reply: string; created_at: string
+}
+
+interface FeedbackItem {
+  id: number; rating: number; question: string; created_at: string
 }
 
 export default function ReportPage() {
-  const [data, setData] = useState<ReportData | null>(null)
+  const [records, setRecords] = useState<ChatRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [fbStats, setFbStats] = useState({ total: 0, likes: 0, dislikes: 0, rate: 0, recent: [] as FeedbackItem[] })
+  const [stats, setStats] = useState({ totalChats: 0, totalSessions: 0, todayChats: 0 })
 
   useEffect(() => {
-    adminApi.getReports()
-      .then(setData)
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    setLoading(true)
+    Promise.all([
+      adminApi.getDashboard(),
+      adminApi.getFeedbackStats().catch(() => null),
+    ]).then(([dash, fb]) => {
+      setStats({ totalChats: dash.total_chats || 0, totalSessions: dash.total_sessions || 0, todayChats: dash.today_chats || 0 })
+      if (fb) setFbStats(fb)
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
-  const columns = [
-    { title: '问题内容', dataIndex: 'question', key: 'question', ellipsis: true },
-    {
-      title: '评分', dataIndex: 'rating', key: 'rating', width: 80,
-      render: (v: number) => v === 1
-        ? <Tag color="green">👍 满意</Tag>
-        : <Tag color="red">👎 不满意</Tag>,
-    },
-    { title: '时间', dataIndex: 'time', key: 'time', width: 160, render: (v: string) => v?.slice(0, 19) },
+  useEffect(() => {
+    adminApi.getChatRecords({ size: 30 }).then((d: any) => setRecords(d.items || [])).catch(() => {})
+  }, [])
+
+  const chatColumns = [
+    { title: '时间', dataIndex: 'created_at', width: 150,
+      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+    { title: '游客提问', dataIndex: 'user_input', ellipsis: true },
+    { title: 'AI 回复', dataIndex: 'ai_reply', ellipsis: true, width: 250,
+      render: (v: string) => (v || '').slice(0, 80) + (v?.length > 80 ? '...' : '') },
+    { title: '景区', dataIndex: 'scenic_spot', width: 80, render: (v: string) => <Tag>{v}</Tag> },
   ]
 
-  const maxRate = data?.daily_trend?.length
-    ? Math.max(...data.daily_trend.map((d) => d.rate), 1)
-    : 1
+  const fbColumns = [
+    { title: '时间', dataIndex: 'created_at', width: 150,
+      render: (v: string) => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+    { title: '评价', dataIndex: 'rating', width: 60,
+      render: (v: number) => v === 1 ? <Tag color="green">👍 赞</Tag> : <Tag color="red">👎 踩</Tag> },
+    { title: '问题', dataIndex: 'question', ellipsis: true },
+  ]
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
 
   return (
     <div>
       <Title level={4}>游客反馈报告</Title>
 
-      <Row gutter={16} style={{ marginBottom: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
-            <Statistic title="满意度" value={data?.satisfaction || 0}
-              suffix="%" prefix={<SmileOutlined />} precision={1} />
-          </Card>
+          <Card><div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 36, color: '#c8963e' }}>{stats.totalChats}</div>
+            <div>累计对话</div>
+          </div></Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
-            <Statistic title="好评数" value={data?.likes || 0}
-              prefix={<LikeOutlined />} valueStyle={{ color: '#52c41a' }} />
-          </Card>
+          <Card><div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 36, color: '#52c41a' }}>{fbStats.likes}</div>
+            <div><LikeOutlined /> 点赞</div>
+          </div></Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
-            <Statistic title="差评数" value={data?.dislikes || 0}
-              prefix={<FrownOutlined />} valueStyle={{ color: '#ff4d4f' }} />
-          </Card>
+          <Card><div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 36, color: '#ff4d4f' }}>{fbStats.dislikes}</div>
+            <div><DislikeOutlined /> 踩</div>
+          </div></Card>
         </Col>
         <Col xs={12} sm={6}>
-          <Card loading={loading}>
-            <Statistic title="总反馈数" value={data?.total_feedback || 0}
-              prefix={<MessageOutlined />} />
-          </Card>
+          <Card><div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 36, color: '#1677ff' }}>{fbStats.rate}%</div>
+            <div>好评率</div>
+          </div></Card>
         </Col>
       </Row>
 
-      <Row gutter={16}>
-        <Col xs={24} md={12}>
-          <Card title="近7天满意度趋势" loading={loading} style={{ marginBottom: 24 }}>
-            {data?.daily_trend?.length ? (
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 160, paddingTop: 8 }}>
-                {data.daily_trend.map((d, i) => (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: d.rate >= 50 ? '#52c41a' : '#ff4d4f', marginBottom: 4 }}>
-                      {d.rate}%
-                    </span>
-                    <div style={{
-                      width: '100%', maxWidth: 40,
-                      height: `${Math.max((d.rate / maxRate) * 120, 4)}px`,
-                      background: d.rate >= 50
-                        ? 'linear-gradient(180deg, #52c41a, #95de64)'
-                        : 'linear-gradient(180deg, #ff4d4f, #ff9c9c)',
-                      borderRadius: '4px 4px 0 0', transition: 'height 0.5s',
-                    }} />
-                    <span style={{ fontSize: 10, color: '#999', marginTop: 6 }}>{d.date}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc' }}>
-                暂无反馈数据
-              </div>
-            )}
-          </Card>
-        </Col>
+      <Card title={<span><LikeOutlined /> 游客反馈评价</span>} style={{ marginBottom: 16 }}>
+        <Table dataSource={fbStats.recent} columns={fbColumns} rowKey="id"
+          pagination={false} size="small"
+          locale={{ emptyText: '暂无反馈，游客使用对话时点击 👍👎 后自动记录' }} />
+      </Card>
 
-        <Col xs={24} md={12}>
-          <Card title="最近反馈记录" loading={loading} style={{ marginBottom: 24 }}>
-            <Table
-              dataSource={data?.recent || []}
-              columns={columns}
-              rowKey={(_: any, i?: number) => String(i)}
-              pagination={false}
-              size="small"
-              locale={{ emptyText: '暂无反馈记录' }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Card title="服务建议" style={{ marginTop: 16 }}>
-        <ul style={{ paddingLeft: 20, fontSize: 13, color: '#666', lineHeight: 2 }}>
-          <li>游客在AI对话界面可对每条回复进行 👍👎 评分</li>
-          <li>评分数据实时汇总到本页面，用于分析游客满意度趋势</li>
-          <li>低满意度时段可针对性优化知识库内容和回复策略</li>
-          <li>定期检查差评问题，补充缺失知识点到知识库</li>
-        </ul>
+      <Card title={<span><CommentOutlined /> 最近对话记录</span>}>
+        <Table dataSource={records} columns={chatColumns} rowKey="id"
+          pagination={false} size="small"
+          locale={{ emptyText: '暂无对话记录' }} />
       </Card>
     </div>
   )

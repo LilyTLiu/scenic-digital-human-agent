@@ -5,9 +5,20 @@ LLM - 大模型调用
 import httpx
 import json
 import os
+from pathlib import Path
 
-DEEPSEEK_API_BASE = "https://api.deepseek.com"
-DEEPSEEK_MODEL = "deepseek-v4-flash"
+# 自动加载 .env 文件（支持直接运行脚本时也能读到 API Key）
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass
+
+# API 配置 — 优先读环境变量，支持 docker-compose 或 .env 覆盖
+DEEPSEEK_API_BASE = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com")
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
 
 def get_api_key():
@@ -19,45 +30,6 @@ def get_api_key():
             "  export DEEPSEEK_API_KEY='sk-...'  (Bash)"
         )
     return key
-
-
-async def chat_with_system(
-    system_prompt: str,
-    user_message: str,
-    history: list[dict] | None = None,
-    temperature: float = 0.7,
-) -> str:
-    """带独立system prompt和对话历史的聊天，供OpenAvatarChat等外部系统调用"""
-    api_key = get_api_key()
-    messages = [{"role": "system", "content": system_prompt}]
-    if history:
-        for h in history:
-            role = h.get("role", "user")
-            content = h.get("content", "")
-            if content:
-                messages.append({"role": role, "content": content})
-    messages.append({"role": "user", "content": user_message})
-
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
-    }
-    payload = {
-        "model": DEEPSEEK_MODEL,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": 300,
-    }
-
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(
-            f"{DEEPSEEK_API_BASE}/chat/completions",
-            headers=headers,
-            json=payload,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
 
 
 async def chat(prompt: str, temperature: float = 0.7) -> str:
@@ -73,7 +45,7 @@ async def chat(prompt: str, temperature: float = 0.7) -> str:
             {"role": "user", "content": prompt},
         ],
         "temperature": temperature,
-        "max_tokens": 300,
+        "max_tokens": 2048,
     }
 
     async with httpx.AsyncClient(timeout=60.0) as client:

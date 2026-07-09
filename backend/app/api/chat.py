@@ -1,38 +1,19 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
 from app.core.rag import search, build_prompt
-from app.core.llm import chat, chat_stream, chat_with_system
-from app.db.database import get_db, ChatRecord, User
+from app.core.llm import chat, chat_stream
+from app.db.database import get_db, ChatRecord, get_collection_name
 import json
-
-
-def _resolve_user(token: str | None) -> int | None:
-    if not token:
-        return None
-    try:
-        from app.db.database import SessionLocal
-        dbs = SessionLocal()
-        try:
-            user = dbs.query(User).filter(User.token == token).first()
-            return user.id if user else None
-        finally:
-            dbs.close()
-    except Exception:
-        return None
 import traceback
-import time
-import uuid
 import datetime
+import uuid
 
 router = APIRouter()
 
-# 景区名 → ChromaDB 集合名映射
-SCENIC_SPOT_MAP = {
-    "灵山胜境": "lingshan",
-    "灵山": "lingshan",
-    "lingshan": "lingshan",
-}
+HISTORY_MAX = 10  # 多轮对话最多携带的历史轮数
 
 
 class ChatRequest(BaseModel):
@@ -40,7 +21,6 @@ class ChatRequest(BaseModel):
     scenic_spot: str = "灵山胜境"
     session_id: str = ""
     stream: bool = False
-    token: str = ""
 
 
 class ChatResponse(BaseModel):
@@ -49,35 +29,62 @@ class ChatResponse(BaseModel):
     references: list = []
 
 
-@router.post("/send")
-async def send_message(req: ChatRequest):
+def _load_history(session_id: str, db: Session, limit: int = HISTORY_MAX) -> list[dict]:
+    """加载指定会话的最近 N 轮对话历史"""
+    if not session_id:
+        return []
+    rows = (
+        db.query(ChatRecord)
+        .filter(ChatRecord.session_id == session_id)
+        .order_by(desc(ChatRecord.created_at))
+        .limit(limit)
+        .all()
+    )
+    # 按时间正序排列
+    rows = list(reversed(rows))
+    history = []
+    for r in rows:
+        history.append({"role": "user", "content": r.user_input})
+        history.append({"role": "assistant", "content": r.ai_reply[:300]})  # 截断历史回复
+    return history
+
+
+def _save_record(session_id: str, scenic_spot: str, user_input: str, ai_reply: str, db: Session):
+    """持久化对话记录到 SQLite"""
     try:
-        collection = SCENIC_SPOT_MAP.get(req.scenic_spot, req.scenic_spot)
+        record = ChatRecord(
+            session_id=session_id,
+            scenic_spot=scenic_spot,
+            user_input=user_input,
+            ai_reply=ai_reply,
+            created_at=datetime.datetime.now(),
+        )
+        db.add(record)
+        db.commit()
+    except Exception:
+        pass  # 记录失败不阻塞主流程
+
+
+@router.post("/send")
+async def send_message(req: ChatRequest, db: Session = Depends(get_db)):
+    try:
+        collection = get_collection_name(req.scenic_spot, db)
+        session_id = req.session_id or str(uuid.uuid4())[:8]
+
         # 1. RAG检索
         results = search(collection, req.message, top_k=5)
-        # 2. 构建提示词
-        prompt = build_prompt(req.message, results, req.scenic_spot)
-        # 3. 调用DeepSeek
+        # 2. 加载对话历史
+        history = _load_history(session_id, db)
+        # 3. 构建提示词（含RAG知识 + 对话历史）
+        prompt = build_prompt(req.message, results, req.scenic_spot, history)
+        # 4. 调用DeepSeek
         reply = await chat(prompt)
-
-        # 4. 记录对话
-        from app.db.database import SessionLocal
-        dbs = SessionLocal()
-        try:
-            dbs.add(ChatRecord(
-                session_id=req.session_id or "web",
-                user_id=_resolve_user(req.token or None),
-                scenic_spot=req.scenic_spot,
-                user_input=req.message,
-                ai_reply=reply,
-            ))
-            dbs.commit()
-        finally:
-            dbs.close()
+        # 5. 持久化
+        _save_record(session_id, req.scenic_spot, req.message, reply, db)
 
         return ChatResponse(
             reply=reply,
-            session_id=req.session_id or "session_001",
+            session_id=session_id,
             references=[
                 {"content": r["content"][:200], "score": round(r["score"], 3),
                  "source": r.get("metadata", {}).get("source", "")}
@@ -92,16 +99,25 @@ async def send_message(req: ChatRequest):
 
 
 @router.post("/stream")
-async def send_message_stream(req: ChatRequest):
+async def send_message_stream(req: ChatRequest, db: Session = Depends(get_db)):
     try:
-        collection = SCENIC_SPOT_MAP.get(req.scenic_spot, req.scenic_spot)
+        collection = get_collection_name(req.scenic_spot, db)
+        session_id = req.session_id or str(uuid.uuid4())[:8]
         results = search(collection, req.message, top_k=5)
-        prompt = build_prompt(req.message, results, req.scenic_spot)
+        history = _load_history(session_id, db)
+        prompt = build_prompt(req.message, results, req.scenic_spot, history)
+
+        # 收集完整回复用于持久化
+        full_reply_parts = []
 
         async def generate():
             async for token in chat_stream(prompt):
+                full_reply_parts.append(token)
                 yield f"data: {json.dumps({'token': token})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
+            # 流式结束后持久化
+            full_reply = "".join(full_reply_parts)
+            _save_record(session_id, req.scenic_spot, req.message, full_reply, db)
 
         return StreamingResponse(
             generate(),
@@ -115,76 +131,3 @@ async def send_message_stream(req: ChatRequest):
         raise HTTPException(status_code=500, detail=f"流式对话失败: {str(e)}")
 
 
-# ========== OpenAI 兼容端点 (供 OpenAvatarChat 调用) ==========
-
-class OpenAIMessage(BaseModel):
-    role: str
-    content: str
-
-class OpenAIRequest(BaseModel):
-    model: str = "deepseek-chat"
-    messages: list[OpenAIMessage]
-    stream: bool = False
-    temperature: float = 0.7
-
-@router.post("/v1/chat/completions")
-async def openai_compatible(req: OpenAIRequest):
-    """OpenAI兼容端点 - OpenAvatarChat的数字人大脑"""
-    try:
-        user_msg = req.messages[-1].content if req.messages else "你好"
-
-        # RAG检索
-        results = search("lingshan", user_msg, top_k=5)
-
-        # 构建导游提示词
-        system_prompt = build_prompt(user_msg, results, "灵山胜境")
-
-        # 提取对话历史（不含最后一条用户消息）
-        history = [
-            {"role": m.role, "content": m.content}
-            for m in req.messages[:-1]
-        ]
-
-        # 调用 DeepSeek
-        reply = await chat_with_system(
-            system_prompt=system_prompt,
-            user_message=user_msg,
-            history=history,
-            temperature=req.temperature,
-        )
-
-        # 记录对话
-        from app.db.database import SessionLocal
-        dbs = SessionLocal()
-        try:
-            dbs.add(ChatRecord(
-                session_id="oac",
-                scenic_spot="灵山胜境",
-                user_input=user_msg,
-                ai_reply=reply,
-            ))
-            dbs.commit()
-        finally:
-            dbs.close()
-
-        return {
-            "id": f"chatcmpl-{uuid.uuid4().hex[:12]}",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": req.model,
-            "choices": [{
-                "index": 0,
-                "message": {"role": "assistant", "content": reply},
-                "finish_reason": "stop",
-            }],
-            "usage": {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
-            },
-        }
-    except RuntimeError as e:
-        raise HTTPException(status_code=503, detail=str(e))
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"LLM调用失败: {str(e)}")

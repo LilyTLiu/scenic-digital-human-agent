@@ -51,8 +51,8 @@ const tabs: Tab[] = [
     ),
   },
   {
-    key: '/tourist/digital-human',
-    label: 'AI数字人',
+    key: '/tourist/real',
+    label: '真人模式',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" stroke={active ? '#c8963e' : '#9c948c'} strokeWidth="2">
         <circle cx="12" cy="8" r="4"/>

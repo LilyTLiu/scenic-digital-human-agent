@@ -3,7 +3,6 @@ RAG - Retrieval Augmented Generation
 文档加载 → 文本切片 → 向量化 → 存入ChromaDB → 检索 → 增强生成
 """
 import os
-import uuid
 # 必须在导入 sentence-transformers 之前设置，否则 huggingface_hub 会尝试联网
 # 模型已缓存在 ~/.cache/huggingface/，日常使用无需联网
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
@@ -54,7 +53,7 @@ def add_documents(collection_name: str, documents: list[str], metadatas: list[di
         for j, _ in enumerate(splits):
             chunk_metadatas.append({**base_meta, "chunk_index": j})
 
-    ids = [f"chunk_{uuid.uuid4().hex[:8]}_{i}" for i in range(len(chunks))]
+    ids = [f"chunk_{i}" for i in range(len(chunks))]
     if chunks:
         collection.add(documents=chunks, metadatas=chunk_metadatas, ids=ids)
     return len(chunks)
@@ -73,25 +72,44 @@ def search(collection_name: str, query: str, top_k: int = 5):
     ]
 
 
-# 当前激活的数字人角色（由 admin.py switch_persona 更新）
-_active_persona_name = "妙音"
-_active_persona_style = "优雅灵动"
+def delete_documents(collection_name: str, doc_ids: list[str]) -> int:
+    """从知识库删除指定文档片段"""
+    if not doc_ids:
+        return 0
+    collection = create_knowledge_base(collection_name)
+    collection.delete(ids=doc_ids)
+    return len(doc_ids)
 
 
-def set_active_persona(name: str, style: str = ""):
-    """由 admin.py 角色切换时调用，同步 LLM 提示词中的角色身份"""
-    global _active_persona_name, _active_persona_style
-    _active_persona_name = name
-    _active_persona_style = style
+def update_document(
+    collection_name: str,
+    old_ids: list[str],
+    documents: list[str],
+    metadatas: list[dict] = None,
+) -> int:
+    """更新文档：删除旧片段 → 添加新片段"""
+    delete_documents(collection_name, old_ids)
+    return add_documents(collection_name, documents, metadatas)
 
 
-def build_prompt(query: str, context_docs: list[dict], scenic_spot: str) -> str:
-    """构建带知识上下文的提示词"""
+def build_prompt(query: str, context_docs: list[dict], scenic_spot: str, history: list[dict] = None) -> str:
+    """构建带知识上下文和对话历史的提示词"""
     context_text = "\n\n---\n\n".join(
         f"[参考片段 {i+1}]\n{doc['content']}"
         for i, doc in enumerate(context_docs)
     )
-    return f"""我是{_active_persona_name}，{scenic_spot}景区的AI导游，风格{_active_persona_style}。请根据以下知识库内容，以我的身份用亲切、专业、热情的语气回答游客的问题。
+
+    # 对话历史
+    history_section = ""
+    if history and len(history) > 0:
+        history_lines = []
+        for h in history:
+            role_label = "游客" if h["role"] == "user" else "AI导游"
+            history_lines.append(f"{role_label}：{h['content']}")
+        history_section = "\n\n---\n\n【对话历史】\n" + "\n".join(history_lines)
+
+    return f"""你是一位对{scenic_spot}景区了如指掌的专业AI导游。请根据以下知识库内容，用亲切、专业、热情的语气回答游客的问题。
+{history_section}
 
 【知识库内容】
 {context_text}
@@ -100,11 +118,11 @@ def build_prompt(query: str, context_docs: list[dict], scenic_spot: str) -> str:
 {query}
 
 【回答要求】
-1. 仔细阅读所有参考片段，不要遗漏任何信息——演出时间、开放时间等实用信息可能藏在片段末尾
-2. 如果游客问的是时间、票价、演出等实用信息，优先从参考片段的"演艺/开放信息"或"游玩亮点"字段中查找
-3. 准确回答，不编造知识库中没有的信息
-4. 如果知识库中确实搜索不到相关信息，诚实告知游客"暂时没有查到这方面的详细信息"，并建议游客关注景区官方小程序或咨询现场工作人员
-5. 语气亲切自然，像一位热情的导游在给游客讲解
-6. 回答中可适当引用知识库中的具体数据、历史典故、文化内涵等内容
-7. 回答务必简洁精炼，控制在50-80字以内，像真实导游口语讲解一样短小精悍，不要长篇大论
+1. 仔细阅读所有参考片段和对话历史（如果有），不要遗漏任何信息——演出时间、开放时间等实用信息可能藏在片段末尾
+2. 如果游客的提问与对话历史相关（如"它"、"那个"等指代），请结合历史上下文理解
+3. 如果游客问的是时间、票价、演出等实用信息，优先从参考片段的"演艺/开放信息"或"游玩亮点"字段中查找
+4. 准确回答，不编造知识库中没有的信息
+5. 如果知识库中确实搜索不到相关信息，诚实告知游客"暂时没有查到这方面的详细信息"，并建议游客关注景区官方小程序或咨询现场工作人员
+6. 语气亲切自然，像一位热情的导游在给游客讲解
+7. 回答中可适当引用知识库中的具体数据、历史典故、文化内涵等内容
 """

@@ -8,11 +8,11 @@ const api = axios.create({
 
 // 对话 - 支持普通模式与流式模式
 export const chatApi = {
-  send: (data: { message: string; scenic_spot?: string; stream?: boolean; token?: string }) =>
+  send: (data: { message: string; scenic_spot?: string; session_id?: string }) =>
     api.post('/chat/send', data).then((r) => r.data),
 
   sendStream: (
-    data: { message: string; scenic_spot?: string },
+    data: { message: string; scenic_spot?: string; session_id?: string },
     onToken: (token: string) => void,
     onDone: () => void,
     onError: (err: Error) => void,
@@ -77,10 +77,33 @@ export const adminApi = {
   createKnowledge: (data: any) => api.post('/admin/knowledge', data).then((r) => r.data),
   updateKnowledge: (id: string, data: any) => api.put(`/admin/knowledge/${id}`, data).then((r) => r.data),
   deleteKnowledge: (id: string) => api.delete(`/admin/knowledge/${id}`).then((r) => r.data),
-  getReports: () => api.get('/admin/reports').then((r) => r.data),
-  getTourists: () => api.get('/admin/tourists').then((r) => r.data),
+  getChatRecords: (params?: any) => api.get('/admin/chat-records', { params }).then((r) => r.data),
   getDigitalHumans: () => api.get('/admin/digital-humans').then((r) => r.data),
   updateDigitalHuman: (id: string, config: any) => api.put(`/admin/digital-humans/${id}`, config).then((r) => r.data),
+  // 景区管理
+  getScenicSpots: () => api.get('/admin/scenic-spots').then((r) => r.data),
+  createScenicSpot: (data: { name: string; slug: string; description?: string }) =>
+    api.post('/admin/scenic-spots', data).then((r) => r.data),
+  updateScenicSpot: (id: number, data: { name: string; slug: string; description?: string }) =>
+    api.put(`/admin/scenic-spots/${id}`, data).then((r) => r.data),
+  deleteScenicSpot: (id: number) => api.delete(`/admin/scenic-spots/${id}`).then((r) => r.data),
+  getReports: () => api.get('/admin/reports').then((r) => r.data),
+  submitFeedback: (rating: number, question?: string) => api.post('/admin/feedback', { rating, question }).then((r) => r.data),
+  getFeedbackStats: () => api.get('/admin/feedback/stats').then((r) => r.data),
+  importDemo: () => api.post('/admin/import-demo').then((r) => r.data),
+  getTourists: () => api.get('/admin/tourists').then((r) => r.data),
+}
+
+// 景区列表（游客端用）
+export const scenicApi = {
+  list: () => api.get('/admin/scenic-spots').then((r) => r.data),
+}
+
+// 游客行为推荐
+export const touristApi = {
+  getRecommend: (params?: { age?: number; budget?: string; style?: string; group?: string }) =>
+    api.get('/admin/tourist/recommend', { params }).then((r) => r.data),
+  getInsights: () => api.get('/admin/tourist/insights').then((r) => r.data),
 }
 
 // 用户系统

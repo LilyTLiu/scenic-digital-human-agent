@@ -1,71 +1,165 @@
-from fastapi import APIRouter, UploadFile, File, Form, Depends
-from sqlalchemy.orm import Session
+"""
+文件上传 → 文档解析 → SQLite 入库 → ChromaDB 向量化 全链路
+支持格式: docx / xlsx / txt
+"""
+import os
+import json
 import datetime
-from app.db.database import get_db, KnowledgeDoc
-from app.core.rag import add_documents
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
+from sqlalchemy.orm import Session
+
+from app.db.database import get_db, KnowledgeDoc, get_collection_name
+from app.core.rag import add_documents, create_knowledge_base
 
 router = APIRouter()
 
-COLLECTION_NAME = "lingshan_knowledge"
+# 限制
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+ALLOWED_EXTENSIONS = {".docx", ".xlsx", ".txt"}
 
+
+# ══════════════════════════════════════════════════════════════
+# 文档解析
+# ══════════════════════════════════════════════════════════════
+
+def parse_docx(file_bytes: bytes) -> str:
+    """从 docx 字节流提取纯文本（含段落和表格）"""
+    import io
+    from docx import Document
+
+    doc = Document(io.BytesIO(file_bytes))
+    parts = []
+
+    # 段落
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if text:
+            parts.append(text)
+
+    # 表格
+    for table in doc.tables:
+        for row in table.rows:
+            cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+            if cells:
+                parts.append(" | ".join(cells))
+
+    return "\n".join(parts)
+
+
+def parse_xlsx(file_bytes: bytes) -> str:
+    """从 xlsx 字节流提取为结构化文本"""
+    import io
+    from openpyxl import load_workbook
+
+    wb = load_workbook(io.BytesIO(file_bytes), read_only=True)
+    parts = []
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        parts.append(f"【{sheet_name}】")
+        for row in ws.iter_rows(values_only=True):
+            cells = [str(c).strip() for c in row if c is not None and str(c).strip()]
+            if cells:
+                parts.append(" | ".join(cells))
+        parts.append("")
+    wb.close()
+    return "\n".join(parts)
+
+
+def parse_txt(file_bytes: bytes) -> str:
+    """纯文本解析"""
+    return file_bytes.decode("utf-8", errors="replace")
+
+
+def parse_file(filename: str, content: bytes) -> str:
+    """根据扩展名选择解析器"""
+    ext = os.path.splitext(filename)[1].lower()
+    if ext == ".docx":
+        return parse_docx(content)
+    elif ext == ".xlsx":
+        return parse_xlsx(content)
+    elif ext == ".txt":
+        return parse_txt(content)
+    else:
+        raise ValueError(f"不支持的文件格式: {ext}")
+
+
+# ══════════════════════════════════════════════════════════════
+# API
+# ══════════════════════════════════════════════════════════════
 
 @router.post("/document")
 async def upload_document(
     file: UploadFile = File(...),
-    scenic_spot: str = Form("灵山胜境"),
-    category: str = Form("通用"),
+    scenic_spot: str = Form(default="灵山胜境"),
+    category: str = Form(default="通用"),
     db: Session = Depends(get_db),
 ):
-    """上传文档 → 解析文本 → 切片向量化 → 存入ChromaDB + SQLite"""
+    """上传文档 → 解析 → SQLite 入库 → ChromaDB 向量化"""
+
+    # ── 校验 ──
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的文件格式 '{ext}'，仅支持: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413, detail=f"文件过大 ({len(content)} bytes)，限制 {MAX_FILE_SIZE} bytes"
+        )
+
+    # ── 解析 ──
     try:
-        content_bytes = await file.read()
-    except Exception:
-        return {"status": "error", "error": "无法读取文件"}
-
-    filename = file.filename or "unknown"
-    text = ""
-
-    # 解析文件内容
-    if filename.endswith('.txt'):
-        try:
-            text = content_bytes.decode('utf-8')
-        except UnicodeDecodeError:
-            text = content_bytes.decode('gbk', errors='replace')
-    elif filename.endswith('.docx'):
-        try:
-            from io import BytesIO
-            from docx import Document
-            doc = Document(BytesIO(content_bytes))
-            text = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        except ImportError:
-            return {"status": "error", "error": "后端缺少python-docx库，请运行: pip install python-docx"}
-        except Exception as e:
-            return {"status": "error", "error": f"docx解析失败: {str(e)}"}
-    else:
-        return {"status": "error", "error": f"不支持的文件格式: {filename}，仅支持 .txt 和 .docx"}
-
-    if not text.strip():
-        return {"status": "error", "error": "文件内容为空"}
-
-    # 向量化存入ChromaDB
-    try:
-        chunk_count = add_documents(COLLECTION_NAME, [text], [{"source": filename}])
+        text = parse_file(file.filename or "unknown", content)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        return {"status": "error", "error": f"向量化失败: {str(e)}"}
+        raise HTTPException(status_code=422, detail=f"文档解析失败: {e}")
 
-    # 同时写入知识库表
-    title = filename.rsplit('.', 1)[0]
-    kb_doc = KnowledgeDoc(
-        title=title, content=text[:2000], category=category,
-        scenic_spot=scenic_spot, updated_at=datetime.datetime.now(),
+    if not text or not text.strip():
+        raise HTTPException(status_code=422, detail="文档解析结果为空，请检查文件内容")
+
+    # ── SQLite 入库 ──
+    title = os.path.splitext(file.filename or "上传文档")[0]
+    doc = KnowledgeDoc(
+        title=title,
+        content=text,
+        category=category,
+        scenic_spot=scenic_spot,
+        created_at=datetime.datetime.now(),
+        updated_at=datetime.datetime.now(),
     )
-    db.add(kb_doc)
+    db.add(doc)
+    db.flush()
+
+    # ── ChromaDB 向量化 ──
+    collection = get_collection_name(scenic_spot, db)
+    chunk_count = 0
+    try:
+        chunk_count = add_documents(
+            collection,
+            [text],
+            [{"source": title, "type": "upload", "kb_id": doc.id}],
+        )
+        coll = create_knowledge_base(collection)
+        all_ids = coll.get()["ids"]
+        new_ids = all_ids[-chunk_count:] if chunk_count else []
+        doc.chroma_ids = json.dumps(new_ids, ensure_ascii=False)
+    except Exception:
+        chunk_count = 0
+
     db.commit()
+    db.refresh(doc)
 
     return {
-        "filename": filename,
-        "size": len(content_bytes),
-        "status": "indexed",
-        "chunks": chunk_count,
+        "id": doc.id,
+        "filename": file.filename,
+        "title": title,
         "scenic_spot": scenic_spot,
+        "category": category,
+        "text_length": len(text),
+        "chroma_chunks": chunk_count,
+        "status": "uploaded_and_indexed",
     }

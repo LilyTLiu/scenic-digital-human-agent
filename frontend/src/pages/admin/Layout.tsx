@@ -5,6 +5,7 @@ import {
   BookOutlined,
   UserOutlined,
   BarChartOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
@@ -12,6 +13,7 @@ const { Header, Sider, Content } = Layout
 const menuItems = [
   { key: '/admin', icon: <DashboardOutlined />, label: '数据大屏' },
   { key: '/admin/knowledge', icon: <BookOutlined />, label: '知识库管理' },
+  { key: '/admin/scenic-spots', icon: <GlobalOutlined />, label: '景区管理' },
   { key: '/admin/digital-human', icon: <UserOutlined />, label: '数字人管理' },
   { key: '/admin/reports', icon: <BarChartOutlined />, label: '反馈报告' },
 ]

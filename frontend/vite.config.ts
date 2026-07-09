@@ -12,25 +12,10 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      '/openavatarchat': {
-        target: 'http://localhost:8787',
+      '/ot': {
+        target: 'http://localhost:8210',
         changeOrigin: true,
-      },
-      '/webrtc': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://localhost:8787',
-        ws: true,
-      },
-      '/download': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
-      },
-      '/ui': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/ot/, ''),
       },
     },
   },
