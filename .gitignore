@@ -1,0 +1,36 @@
+# Dependencies
+frontend/node_modules/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Virtual environments
+venv/
+scenic-venv/
+
+# Secrets
+.env
+!.env.example
+
+# Databases (binary)
+backend/chroma_db/
+backend/data.db
+backend/tourist_behavior.db
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+frontend/dist/

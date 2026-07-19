@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>语音识别链路 - 动效演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; font-family: 'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow: hidden;
+  }
+
+  .pipeline {
+    display: flex; align-items: center; gap: 0;
+    padding: 60px 40px;
+  }
+
+  .node {
+    width: 150px; height: 90px;
+    border-radius: 16px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative; z-index: 2;
+    font-size: 14px; font-weight: 600; color: #fff;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s, box-shadow 0.3s;
+    text-align: center;
+  }
+  .node .icon { font-size: 28px; margin-bottom: 2px; }
+  .node .label { font-size: 11px; opacity: 0.7; margin-top: 3px; }
+  .node .detail { font-size: 10px; opacity: 0.5; margin-top: 1px; }
+
+  .node.mic     { background: linear-gradient(135deg, #f12711, #f5af19); }
+  .node.ffmpeg  { background: linear-gradient(135deg, #8E2DE2, #4A00E0); }
+  .node.whisper { background: linear-gradient(135deg, #00b4db, #0083b0); }
+  .node.text    { background: linear-gradient(135deg, #11998e, #38ef7d); }
+
+  .node.highlight {
+    transform: scale(1.08);
+    box-shadow: 0 0 50px rgba(255,255,255,0.35);
+  }
+
+  .pipe {
+    width: 100px; height: 4px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    position: relative; z-index: 1;
+    overflow: visible;
+  }
+
+  .dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 12px 4px rgba(100,200,255,0.8),
+                0 0 30px 8px rgba(100,200,255,0.4);
+    top: -3px; left: -10px;
+    animation: flow 2.0s ease-in-out infinite;
+  }
+  .pipe:nth-child(2) .dot { animation-delay: 0s; }
+  .pipe:nth-child(4) .dot { animation-delay: 0.65s; }
+  .pipe:nth-child(6) .dot { animation-delay: 1.3s; }
+
+  @keyframes flow {
+    0%   { left: -10px; opacity: 0; }
+    12%  { opacity: 1; }
+    88%  { opacity: 1; }
+    100% { left: calc(100% - 10px); opacity: 0; }
+  }
+
+  /* ── 波形动画（麦克风节点上方） ── */
+  .waveform {
+    position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: flex-end; gap: 3px; height: 40px;
+    opacity: 0; transition: opacity 0.4s;
+  }
+  .node.mic.highlight .waveform { opacity: 1; }
+  .waveform .bar {
+    width: 5px; border-radius: 3px;
+    background: linear-gradient(180deg, #f5af19, #f12711);
+    animation: wave 0.6s ease-in-out infinite alternate;
+  }
+  .waveform .bar:nth-child(1) { height: 15px; animation-delay: 0s; }
+  .waveform .bar:nth-child(2) { height: 28px; animation-delay: 0.08s; }
+  .waveform .bar:nth-child(3) { height: 38px; animation-delay: 0.16s; }
+  .waveform .bar:nth-child(4) { height: 25px; animation-delay: 0.24s; }
+  .waveform .bar:nth-child(5) { height: 35px; animation-delay: 0.32s; }
+  .waveform .bar:nth-child(6) { height: 20px; animation-delay: 0.40s; }
+  .waveform .bar:nth-child(7) { height: 30px; animation-delay: 0.48s; }
+  @keyframes wave {
+    0%   { transform: scaleY(0.3); }
+    100% { transform: scaleY(1.0); }
+  }
+
+  /* ── 数字雨效果（ffmpeg 节点） ── */
+  .matrix-rain {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    border-radius: 16px; overflow: hidden;
+    opacity: 0; transition: opacity 0.4s;
+    pointer-events: none;
+  }
+  .node.ffmpeg.highlight .matrix-rain { opacity: 0.3; }
+  .rain-col {
+    position: absolute; top: -20px;
+    font-family: 'Courier New', monospace;
+    font-size: 10px; color: #fff;
+    animation: rain 1.2s linear infinite;
+  }
+  @keyframes rain {
+    0%   { transform: translateY(-20px); opacity: 1; }
+    100% { transform: translateY(100px); opacity: 0; }
+  }
+
+  /* ── 底部信息 ── */
+  .step-info {
+    position: absolute; bottom: 140px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.5); font-size: 13px;
+    text-align: center; transition: all 0.5s;
+  }
+  .step-info .step-title { font-size: 16px; color: #fff; margin-bottom: 4px; }
+
+  /* ── 音频格式标签（管道上方） ── */
+  .format-tag {
+    position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: rgba(255,255,255,0.35);
+    white-space: nowrap;
+  }
+  .pipe:nth-child(2) .format-tag::after { content: 'WebM / Opus'; }
+  .pipe:nth-child(4) .format-tag::after { content: 'PCM WAV 16kHz'; }
+
+  /* ── 标题 ── */
+  .title {
+    position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+    font-size: 22px; color: #fff; font-weight: 700; letter-spacing: 2px;
+  }
+  .subtitle {
+    position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: rgba(255,255,255,0.35);
+  }
+
+  /* ── 底部数据流 ── */
+  .data-bar {
+    position: absolute; bottom: 60px; left: 10%; right: 10%;
+    height: 40px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    display: flex; align-items: center;
+  }
+  .data-text {
+    position: absolute;
+    font-family: 'Courier New', monospace;
+    font-size: 11px; color: rgba(255,255,255,0.35);
+    white-space: nowrap;
+    animation: scrollText 15s linear infinite;
+  }
+  @keyframes scrollText {
+    0%   { transform: translateX(100%); }
+    100% { transform: translateX(-200%); }
+  }
+</style>
+</head>
+<body>
+
+<div class="title">灵山胜境 AI 导游 · 语音识别管线</div>
+<div class="subtitle">前端采集 → 音频转换 → 本地推理 → 文本输出</div>
+
+<div class="pipeline">
+  <!-- 节点1：麦克风 -->
+  <div class="node mic" id="n1">
+    <div class="waveform">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+    <div class="icon">🎤</div>
+    <div>音频采集</div>
+    <div class="label">MediaRecorder API</div>
+    <div class="detail">浏览器原生录音</div>
+  </div>
+
+  <div class="pipe">
+    <div class="format-tag"></div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- 节点2：ffmpeg -->
+  <div class="node ffmpeg" id="n2">
+    <div class="matrix-rain" id="rain"></div>
+    <div class="icon">🔄</div>
+    <div>格式转换</div>
+    <div class="label">FFmpeg</div>
+    <div class="detail">WebM → PCM WAV</div>
+  </div>
+
+  <div class="pipe">
+    <div class="format-tag"></div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- 节点3：faster-whisper -->
+  <div class="node whisper" id="n3">
+    <div class="icon">🤖</div>
+    <div>语音识别</div>
+    <div class="label">faster-whisper base</div>
+    <div class="detail">CPU int8 量化 · 本地推理</div>
+  </div>
+
+  <div class="pipe"><div class="dot"></div></div>
+
+  <!-- 节点4：文本 -->
+  <div class="node text" id="n4">
+    <div class="icon">📝</div>
+    <div>识别结果</div>
+    <div class="label">"灵山大佛有多高"</div>
+    <div class="detail">置信度: 0.98</div>
+  </div>
+</div>
+
+<div class="step-info" id="stepInfo">
+  <div class="step-title">Step 1: 浏览器录音</div>
+  <div>MediaRecorder 采集 → WebM/Opus 编码</div>
+</div>
+
+<div class="data-bar">
+  <div class="data-text">
+    MediaRecorder.start() → ondataavailable → Blob{type:"audio/webm"} → POST /api/voice/asr → ffmpeg -i input.webm -acodec pcm_s16le -ar 16000 -ac 1 output.wav → model.transcribe(wav, beam_size=5, vad_filter=True) → "灵山大佛有多高" (confidence: 0.98)
+  </div>
+</div>
+
+<script>
+  // ── 矩阵雨效果 ──
+  const rainContainer = document.getElementById('rain');
+  const chars = '01ABCDEF';
+  for (let i = 0; i < 8; i++) {
+    const col = document.createElement('div');
+    col.className = 'rain-col';
+    col.style.left = (i * 18 + 8) + 'px';
+    col.style.animationDuration = (0.8 + Math.random() * 1.0) + 's';
+    col.style.animationDelay = Math.random() * 0.5 + 's';
+    col.textContent = Array.from({length: 8}, () => chars[Math.floor(Math.random() * chars.length)]).join('\n');
+    rainContainer.appendChild(col);
+  }
+
+  // ── 阶段循环 ──
+  const nodes = [n1, n2, n3, n4];
+  const steps = [
+    { title: 'Step 1: 浏览器原生录音', desc: 'MediaRecorder API → audio/webm 编码 → 前端零依赖' },
+    { title: 'Step 2: FFmpeg 音频预处理', desc: 'WebM(Opus) → PCM WAV 16kHz 单声道 → faster-whisper 所需格式' },
+    { title: 'Step 3: 本地语音识别', desc: 'faster-whisper base 模型 → CPU int8 量化推理 → beam_size=5 + VAD 滤波' },
+    { title: 'Step 4: 输出识别文本', desc: '中文转写 + 置信度评分 → 返回前端 → 送入对话管线' },
+  ];
+  let current = 0;
+  setInterval(() => {
+    nodes.forEach(n => n.classList.remove('highlight'));
+    nodes[current].classList.add('highlight');
+    document.getElementById('stepInfo').innerHTML =
+      `<div class="step-title">${steps[current].title}</div><div>${steps[current].desc}</div>`;
+    current = (current + 1) % 4;
+  }, 2800);
+</script>
+
+</body>
+</html>

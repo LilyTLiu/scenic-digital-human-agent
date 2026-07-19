@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>灵山胜境 AI 导游 - 技术动效演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; font-family: 'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow: hidden;
+  }
+
+  .pipeline {
+    display: flex; align-items: center; gap: 0;
+    padding: 60px 40px;
+    position: relative;
+  }
+
+  /* ── 节点 ── */
+  .node {
+    width: 150px; height: 80px;
+    border-radius: 16px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative; z-index: 2;
+    font-size: 14px; font-weight: 600; color: #fff;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s;
+  }
+  .node .icon { font-size: 28px; margin-bottom: 4px; }
+  .node .label { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+  .node.user    { background: linear-gradient(135deg, #667eea, #764ba2); }
+  .node.rag     { background: linear-gradient(135deg, #f093fb, #f5576c); }
+  .node.llm     { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+  .node.stream  { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+  .node.highlight {
+    transform: scale(1.08);
+    box-shadow: 0 0 50px rgba(255,255,255,0.3);
+  }
+
+  /* ── 管道（节点间连线） ── */
+  .pipe {
+    width: 100px; height: 4px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    position: relative; z-index: 1;
+    overflow: visible;
+  }
+
+  /* ── 流动光点 ── */
+  .dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 12px 4px rgba(100,200,255,0.8),
+                0 0 30px 8px rgba(100,200,255,0.4);
+    top: -3px; left: -10px;
+    animation: flow 1.8s ease-in-out infinite;
+  }
+  .pipe:nth-child(2) .dot { animation-delay: 0s; }
+  .pipe:nth-child(4) .dot { animation-delay: 0.6s; }
+  .pipe:nth-child(6) .dot { animation-delay: 1.2s; }
+
+  @keyframes flow {
+    0%   { left: -10px; opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: calc(100% - 10px); opacity: 0; }
+  }
+
+  /* ── 阶段标签（管道下方） ── */
+  .phase-label {
+    position: absolute; top: 90px;
+    font-size: 11px; color: rgba(255,255,255,0.4);
+    white-space: nowrap; text-align: center;
+    width: 100px; left: 0;
+  }
+
+  /* ── 底部数据流动字幕 ── */
+  .data-bar {
+    position: absolute; bottom: 60px; left: 10%; right: 10%;
+    height: 40px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    display: flex; align-items: center;
+  }
+  .data-text {
+    position: absolute;
+    font-family: 'Courier New', monospace;
+    font-size: 11px; color: rgba(255,255,255,0.35);
+    white-space: nowrap;
+    animation: scrollText 12s linear infinite;
+  }
+  @keyframes scrollText {
+    0%   { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+  }
+
+  /* ── 步骤说明 ── */
+  .step-info {
+    position: absolute; bottom: 140px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.5); font-size: 13px;
+    text-align: center;
+    transition: all 0.5s;
+  }
+  .step-info .step-title { font-size: 16px; color: #fff; margin-bottom: 4px; }
+
+  /* ── 标题 ── */
+  .title {
+    position: absolute; top: 30px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 22px; color: #fff; font-weight: 700;
+    letter-spacing: 2px;
+  }
+  .subtitle {
+    position: absolute; top: 62px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px; color: rgba(255,255,255,0.35);
+  }
+</style>
+</head>
+<body>
+
+<div class="title">灵山胜境 AI 导游 · 智能问答引擎</div>
+<div class="subtitle">RAG 增强检索 + 大语言模型 + 流式响应</div>
+
+<div class="pipeline">
+  <!-- 节点1：用户提问 -->
+  <div class="node user" id="n1">
+    <div class="icon">💬</div>
+    <div>用户提问</div>
+    <div class="label">"灵山大佛有多高？"</div>
+  </div>
+
+  <div class="pipe"><div class="dot"></div></div>
+
+  <!-- 节点2：ChromaDB -->
+  <div class="node rag" id="n2">
+    <div class="icon">🔍</div>
+    <div>向量检索</div>
+    <div class="label">ChromaDB · 41条知识</div>
+  </div>
+
+  <div class="pipe"><div class="dot"></div></div>
+
+  <!-- 节点3：DeepSeek -->
+  <div class="node llm" id="n3">
+    <div class="icon">🧠</div>
+    <div>大模型生成</div>
+    <div class="label">DeepSeek-Chat</div>
+  </div>
+
+  <div class="pipe"><div class="dot"></div></div>
+
+  <!-- 节点4：流式返回 -->
+  <div class="node stream" id="n4">
+    <div class="icon">⚡</div>
+    <div>流式返回</div>
+    <div class="label">SSE · 逐字输出</div>
+  </div>
+</div>
+
+<!-- 步骤说明 -->
+<div class="step-info" id="stepInfo">
+  <div class="step-title">Step 1: 用户输入问题</div>
+  <div>语音 / 文字 → 后端 API</div>
+</div>
+
+<!-- 数据流字幕 -->
+<div class="data-bar">
+  <div class="data-text" id="dataText">
+    {"query":"灵山大佛有多高"} → collection.query(embeddings) → [0.743 "灵山大佛:88米...", 0.702 "灵山大佛照壁:39.8米...", 0.661 "..."] → prompt = system + context + history + query → stream: "灵|山|大|佛|通|高|88|米|，|佛|体|高|79|米|..."
+  </div>
+</div>
+
+<script>
+  // ── 阶段循环高亮 ──
+  const nodes = [n1, n2, n3, n4];
+  const steps = [
+    { title: 'Step 1: 用户输入问题', desc: '语音 / 文字 → 后端 FastAPI' },
+    { title: 'Step 2: 向量检索 (RAG)', desc: 'text2vec-base-chinese 嵌入 → ChromaDB 相似度搜索 → Top-5 知识片段' },
+    { title: 'Step 3: 大模型推理', desc: 'Prompt = 角色身份 + 知识上下文 + 对话历史 + 用户问题 → DeepSeek' },
+    { title: 'Step 4: 流式响应', desc: 'SSE (Server-Sent Events) → 逐 Token 推送 → 前端打字机渲染' },
+  ];
+
+  let current = 0;
+  setInterval(() => {
+    nodes.forEach(n => n.classList.remove('highlight'));
+    nodes[current].classList.add('highlight');
+    document.getElementById('stepInfo').innerHTML =
+      `<div class="step-title">${steps[current].title}</div><div>${steps[current].desc}</div>`;
+    current = (current + 1) % 4;
+  }, 2500);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,210 @@
+"""
+RAG - Retrieval Augmented Generation
+文档加载 → 文本切片 → 向量化 → 存入ChromaDB → 检索 → 增强生成
+"""
+import os
+# 必须在导入 sentence-transformers 之前设置，否则 huggingface_hub 会尝试联网
+# 模型已缓存在 ~/.cache/huggingface/，日常使用无需联网
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from chromadb import PersistentClient
+from chromadb.utils import embedding_functions
+
+KB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base")
+CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
+
+# 默认嵌入函数（懒加载，避免启动时联网检查）
+_ef_cache: dict[str, embedding_functions.SentenceTransformerEmbeddingFunction] = {}
+
+def get_ef():
+    """按需获取 embedding 函数（避免模块加载时触发模型下载）"""
+    if "default" not in _ef_cache:
+        try:
+            import sentence_transformers.util
+            # 先预处理 — 在离线环境下验证缓存已完成
+            model_name = "shibing624/text2vec-base-chinese"
+            _ef_cache["default"] = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name=model_name,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"嵌入模型加载失败（缓存可能不完整）: {e}\n"
+                "请删除缓存后重新联网下载:\n"
+                "  rm -rf ~/.cache/huggingface/hub/models--shibing624--text2vec-base-chinese\n"
+                "  cd backend && python -c \"from sentence_transformers import SentenceTransformer; SentenceTransformer('shibing624/text2vec-base-chinese')\""
+            ) from e
+    return _ef_cache["default"]
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=50,
+    separators=["\n\n", "\n", "。", "！", "？", "，", " ", ""],
+)
+
+
+def get_chroma_client():
+    os.makedirs(CHROMA_PATH, exist_ok=True)
+    return PersistentClient(path=CHROMA_PATH)
+
+
+def create_knowledge_base(collection_name: str):
+    """创建或获取知识库集合"""
+    client = get_chroma_client()
+    collection = client.get_or_create_collection(
+        name=collection_name,
+        embedding_function=get_ef(),
+    )
+    return collection
+
+
+def add_documents(collection_name: str, documents: list[str], metadatas: list[dict] = None):
+    """向知识库添加文档"""
+    collection = create_knowledge_base(collection_name)
+    chunks = []
+    chunk_metadatas = []
+    for i, doc in enumerate(documents):
+        splits = text_splitter.split_text(doc)
+        chunks.extend(splits)
+        base_meta = metadatas[i] if metadatas else {}
+        for j, _ in enumerate(splits):
+            chunk_metadatas.append({**base_meta, "chunk_index": j})
+
+    import uuid
+    # 使用已有最大 ID 作为起始偏移，避免跨批次覆盖
+    existing = collection.get()
+    next_idx = 0
+    if existing["ids"]:
+        # 提取所有 chunk_N 中的最大 N
+        for eid in existing["ids"]:
+            if eid.startswith("chunk_"):
+                try:
+                    next_idx = max(next_idx, int(eid.split("_")[1]) + 1)
+                except ValueError:
+                    pass
+    ids = [f"chunk_{next_idx + i}" for i in range(len(chunks))]
+    if chunks:
+        collection.add(documents=chunks, metadatas=chunk_metadatas, ids=ids)
+    return len(chunks)
+
+
+def search(collection_name: str, query: str, top_k: int = 5):
+    """检索相关文档片段（混合检索：向量 + 关键词加权 + 标题匹配）"""
+    collection = create_knowledge_base(collection_name)
+    # 知识库规模不大（<100条），全量召回后关键词重排
+    results = collection.query(query_texts=[query], n_results=min(collection.count(), 200))
+    docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    # 提取查询关键词：2-gram + 3-gram 中文子串（替代分词）
+    import re
+    raw_kws = re.findall(r'[一-鿿\w]{2,}', query)
+    keywords = set(raw_kws)
+    for kw in raw_kws:
+        if len(kw) >= 2:
+            for i in range(len(kw) - 1):
+                keywords.add(kw[i:i+2])  # 2-gram
+            if len(kw) >= 3:
+                for i in range(len(kw) - 2):
+                    keywords.add(kw[i:i+3])  # 3-gram
+    keywords = [k for k in keywords if len(k) >= 2]
+
+    scored = []
+    for doc, meta, dist in zip(docs, metas, distances):
+        base_score = 1.0 - dist if dist else 1.0
+        boost = 0.0
+        source = meta.get("source", "")
+        # 标题精确匹配：查询词命中 source 字段 → 大幅加分（0.3）
+        for kw in keywords:
+            if kw in source:
+                boost += 0.3
+        # 内容命中 → 小幅加分
+        for kw in keywords:
+            if kw in doc:
+                boost += 0.03
+        scored.append((base_score + boost, base_score, doc, meta))
+
+    scored.sort(key=lambda x: -x[0])
+    return [
+        {"content": doc, "metadata": meta, "score": round(base, 3)}
+        for _, base, doc, meta in scored[:top_k]
+    ]
+
+
+def delete_documents(collection_name: str, doc_ids: list[str]) -> int:
+    """从知识库删除指定文档片段"""
+    if not doc_ids:
+        return 0
+    collection = create_knowledge_base(collection_name)
+    collection.delete(ids=doc_ids)
+    return len(doc_ids)
+
+
+def update_document(
+    collection_name: str,
+    old_ids: list[str],
+    documents: list[str],
+    metadatas: list[dict] = None,
+) -> int:
+    """更新文档：删除旧片段 → 添加新片段"""
+    delete_documents(collection_name, old_ids)
+    return add_documents(collection_name, documents, metadatas)
+
+
+def build_prompt(
+    query: str,
+    context_docs: list[dict],
+    scenic_spot: str,
+    history: list[dict] = None,
+    persona_name: str = None,
+    persona_role: str = None,
+    persona_style: str = None,
+) -> str:
+    """构建带知识上下文、对话历史和角色身份的提示词"""
+    context_text = "\n\n---\n\n".join(
+        f"[参考片段 {i+1}]\n{doc['content']}"
+        for i, doc in enumerate(context_docs)
+    )
+
+    # 角色身份
+    persona_section = ""
+    if persona_name:
+        role_desc = persona_name
+        if persona_role:
+            role_desc += f"，{persona_role}"
+        if persona_style:
+            role_desc += f"，风格{persona_style}"
+        persona_section = f"""
+【你的身份】
+你现在的身份是：{role_desc}。
+请完全以{persona_name}的身份和口吻来回答，保持{persona_style or '专业'}的说话风格。
+"""
+
+    # 对话历史
+    history_section = ""
+    if history and len(history) > 0:
+        history_lines = []
+        for h in history:
+            role_label = "游客" if h["role"] == "user" else persona_name or "AI导游"
+            history_lines.append(f"{role_label}：{h['content']}")
+        history_section = "\n\n---\n\n【对话历史】\n" + "\n".join(history_lines)
+
+    return f"""你是一位对{scenic_spot}景区了如指掌的AI导游。{persona_section}请根据以下知识库内容回答游客的问题。
+{history_section}
+
+【知识库内容】
+{context_text}
+
+【游客问题】
+{query}
+
+【回答要求】
+1. 仔细阅读所有参考片段和对话历史（如果有），不要遗漏任何信息——演出时间、开放时间等实用信息可能藏在片段末尾
+2. 如果游客的提问与对话历史相关（如"它"、"那个"等指代），请结合历史上下文理解
+3. 如果游客问的是时间、票价、演出等实用信息，优先从参考片段的"演艺/开放信息"或"游玩亮点"字段中查找
+4. 准确回答，不编造知识库中没有的信息
+5. 如果知识库中确实搜索不到相关信息，诚实告知游客"暂时没有查到这方面的详细信息"，并建议游客关注景区官方小程序或咨询现场工作人员
+6. 语气亲切自然，像一位热情的导游在给游客讲解
+7. 回答中可适当引用知识库中的具体数据、历史典故、文化内涵等内容
+"""

@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>技术架构与创新总结 - 动效演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; font-family: 'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow: hidden;
+  }
+
+  /* ── 标题 ── */
+  .title {
+    position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+    font-size: 22px; color: #fff; font-weight: 700; letter-spacing: 2px;
+    text-align: center;
+  }
+  .subtitle {
+    position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: rgba(255,255,255,0.35);
+  }
+
+  /* ── 阶段标签 ── */
+  .phase-badge {
+    position: absolute; top: 95px; left: 50%; transform: translateX(-50%);
+    padding: 4px 16px; border-radius: 12px;
+    font-size: 12px; font-weight: 600; letter-spacing: 1px;
+    transition: all 0.4s;
+  }
+
+  /* ── 架构图容器 ── */
+  .arch-container {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    display: flex; flex-direction: column; gap: 24px;
+    opacity: 1; transition: opacity 0.5s;
+  }
+
+  /* 层标签 */
+  .layer-label {
+    position: absolute; left: -80px; top: 50%; transform: translateY(-50%) rotate(-90deg);
+    font-size: 11px; color: rgba(255,255,255,0.3); letter-spacing: 3px;
+    white-space: nowrap;
+    width: 60px; text-align: center;
+  }
+
+  /* 每一层 */
+  .layer {
+    display: flex; align-items: center; gap: 0;
+    position: relative;
+  }
+
+  /* 节点 */
+  .node {
+    width: 140px; height: 70px;
+    border-radius: 14px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: #fff;
+    box-shadow: 0 0 25px rgba(0,0,0,0.4);
+    transition: transform 0.3s, box-shadow 0.3s, opacity 0.4s;
+    position: relative; z-index: 2;
+    text-align: center;
+  }
+  .node .icon { font-size: 24px; margin-bottom: 2px; }
+  .node .label { font-size: 10px; opacity: 0.55; margin-top: 2px; }
+
+  .node.frontend  { background: linear-gradient(135deg, #667eea, #764ba2); }
+  .node.backend   { background: linear-gradient(135deg, #f093fb, #f5576c); }
+  .node.ai        { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+  .node.infra     { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+  .node.highlight {
+    transform: scale(1.06);
+    box-shadow: 0 0 40px rgba(255,255,255,0.3);
+  }
+
+  /* 连线箭头 */
+  .arrow {
+    width: 50px; height: 2px;
+    background: rgba(255,255,255,0.18);
+    position: relative; z-index: 1;
+  }
+  .arrow::after {
+    content: '▸';
+    position: absolute; right: -2px; top: -8px;
+    color: rgba(255,255,255,0.3); font-size: 14px;
+  }
+  .arrow.active {
+    background: rgba(255,255,255,0.5);
+  }
+  .arrow.active::after {
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* 层间连接线 */
+  .connector {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    width: 2px; height: 16px;
+    background: rgba(255,255,255,0.1);
+  }
+  .connector.active {
+    background: rgba(255,255,255,0.4);
+  }
+
+  /* ── 创新点面板 ── */
+  .innovation-panel {
+    position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 40px;
+    opacity: 0; transition: opacity 0.5s;
+  }
+  .innovation-panel.show { opacity: 1; }
+
+  .innovation-card {
+    width: 200px; padding: 20px 16px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    text-align: center;
+    color: #fff;
+    transition: all 0.4s;
+  }
+  .innovation-card.pop {
+    border-color: rgba(255,255,255,0.3);
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-6px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+  }
+  .innovation-card .card-icon { font-size: 32px; margin-bottom: 8px; }
+  .innovation-card .card-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .innovation-card .card-desc { font-size: 11px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+
+  /* ── 大节点标签 ── */
+  .big-label {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    font-size: 36px; font-weight: 700; color: #fff;
+    opacity: 0; transition: opacity 0.6s;
+    pointer-events: none;
+  }
+
+  /* ── 底部数据流 ── */
+  .data-bar {
+    position: absolute; bottom: 24px; left: 10%; right: 10%;
+    height: 24px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 6px; border: 1px solid rgba(255,255,255,0.04);
+    overflow: hidden;
+  }
+  .data-text {
+    font-family: 'Courier New', monospace;
+    font-size: 10px; color: rgba(255,255,255,0.22);
+    white-space: nowrap;
+    animation: scrollText 20s linear infinite;
+    line-height: 24px;
+  }
+  @keyframes scrollText {
+    0%   { transform: translateX(100%); }
+    100% { transform: translateX(-300%); }
+  }
+
+  /* ── 技术标签云 ── */
+  .tag-cloud {
+    position: absolute; top: 130px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    max-width: 700px;
+  }
+  .tag {
+    padding: 4px 14px; border-radius: 14px;
+    font-size: 11px; font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.4);
+    transition: all 0.5s;
+    opacity: 0.3;
+  }
+  .tag.lit {
+    opacity: 1;
+    color: #fff;
+    border-color: rgba(255,255,255,0.35);
+    box-shadow: 0 0 12px rgba(255,255,255,0.08);
+  }
+</style>
+</head>
+<body>
+
+<div class="title">灵山胜境 AI 导游 · 技术架构与创新</div>
+<div class="subtitle">React + FastAPI + 五大 AI 引擎 | 多模态 · 实时性 · 可落地</div>
+
+<!-- 阶段指示 -->
+<div class="phase-badge" id="phaseBadge" style="background:rgba(102,126,234,0.2);color:#667eea;border:1px solid rgba(102,126,234,0.3)">PHASE 1 · 架构总览</div>
+
+<!-- 技术标签云 -->
+<div class="tag-cloud" id="tags">
+  <span class="tag">React 18</span>
+  <span class="tag">TypeScript</span>
+  <span class="tag">FastAPI</span>
+  <span class="tag">DeepSeek-Chat</span>
+  <span class="tag">ChromaDB</span>
+  <span class="tag">text2vec-base-chinese</span>
+  <span class="tag">Edge-TTS</span>
+  <span class="tag">faster-whisper</span>
+  <span class="tag">OpenTalking</span>
+  <span class="tag">QuickTalk LAM</span>
+  <span class="tag">WebRTC</span>
+  <span class="tag">SSE 流式</span>
+  <span class="tag">RAG 增强检索</span>
+  <span class="tag">SQLite</span>
+  <span class="tag">Docker</span>
+</div>
+
+<!-- 架构图 -->
+<div class="arch-container" id="archContainer">
+  <!-- 前端层 -->
+  <div class="layer">
+    <div class="node frontend" id="nFrontend">
+      <div class="icon">🖥️</div>
+      <div>前端展示层</div>
+      <div class="label">React + Vite + Ant Design</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node frontend" style="width:120px">
+      <div class="icon">📱</div>
+      <div>游客端 ×4 页</div>
+      <div class="label">对话/导览/推荐</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node frontend" style="width:120px">
+      <div class="icon">⚙️</div>
+      <div>管理端 ×4 页</div>
+      <div class="label">数据/知识/形象</div>
+    </div>
+  </div>
+
+  <div class="connector" style="left:70px"></div>
+  <div class="connector" style="left:225px"></div>
+  <div class="connector" style="left:400px"></div>
+
+  <!-- 后端层 -->
+  <div class="layer">
+    <div class="node backend" id="nBackend">
+      <div class="icon">⚡</div>
+      <div>API 网关层</div>
+      <div class="label">FastAPI · 异步非阻塞</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node backend" style="width:140px">
+      <div class="icon">🔗</div>
+      <div>REST + SSE + WebRTC</div>
+      <div class="label">/api/chat /voice ...</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node backend" style="width:130px">
+      <div class="icon">💾</div>
+      <div>数据持久层</div>
+      <div class="label">SQLite + ChromaDB</div>
+    </div>
+  </div>
+
+  <div class="connector" style="left:70px"></div>
+  <div class="connector" style="left:260px"></div>
+  <div class="connector" style="left:470px"></div>
+
+  <!-- AI 引擎层 -->
+  <div class="layer">
+    <div class="node ai" id="nAI">
+      <div class="icon">🧠</div>
+      <div>AI 引擎层</div>
+      <div class="label">五大核心引擎</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node ai" style="width:100px;font-size:10px">
+      <div class="icon">🔍</div>
+      <div>向量检索</div>
+      <div class="label">ChromaDB RAG</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node ai" style="width:100px;font-size:10px">
+      <div class="icon">💬</div>
+      <div>大模型</div>
+      <div class="label">DeepSeek</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node ai" style="width:100px;font-size:10px">
+      <div class="icon">🔊</div>
+      <div>语音合成</div>
+      <div class="label">Edge-TTS</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node ai" style="width:100px;font-size:10px">
+      <div class="icon">🎤</div>
+      <div>语音识别</div>
+      <div class="label">faster-whisper</div>
+    </div>
+  </div>
+
+  <div class="connector" style="left:70px"></div>
+  <div class="connector" style="left:245px"></div>
+  <div class="connector" style="left:370px"></div>
+  <div class="connector" style="left:495px"></div>
+  <div class="connector" style="left:620px"></div>
+
+  <!-- 基础设施层 -->
+  <div class="layer">
+    <div class="node infra" id="nInfra">
+      <div class="icon">🖧</div>
+      <div>基础设施层</div>
+      <div class="label">GPU · WebRTC · Docker</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node infra" style="width:130px">
+      <div class="icon">🎮</div>
+      <div>GPU 推理</div>
+      <div class="label">RTX 4060 · QuickTalk LAM</div>
+    </div>
+    <div class="arrow"></div>
+    <div class="node infra" style="width:130px">
+      <div class="icon">📹</div>
+      <div>实时通信</div>
+      <div class="label">WebRTC P2P 流媒体</div>
+    </div>
+  </div>
+</div>
+
+<!-- 创新点面板（Phase 2 显示） -->
+<div class="innovation-panel" id="innovationPanel">
+  <div class="innovation-card" id="card1">
+    <div class="card-icon">🎙️</div>
+    <div class="card-title">多模态</div>
+    <div class="card-desc">听、说、看、想<br>全链路 AI 打通<br>语音+文字+视频三通道</div>
+  </div>
+  <div class="innovation-card" id="card2">
+    <div class="card-icon">⚡</div>
+    <div class="card-title">实时性</div>
+    <div class="card-desc">WebRTC 流媒体<br>GPU 本地推理<br>端到端延迟 &lt; 1 秒</div>
+  </div>
+  <div class="innovation-card" id="card3">
+    <div class="card-icon">🚀</div>
+    <div class="card-title">可落地</div>
+    <div class="card-desc">完整管理后台<br>多景区架构<br>14万条真实数据驱动</div>
+  </div>
+</div>
+
+<div class="data-bar">
+  <div class="data-text">
+    Architecture: React 18 + TypeScript → Vite Proxy → FastAPI Async → DeepSeek-Chat / ChromaDB(text2vec-base-chinese) / Edge-TTS / faster-whisper-base / OpenTalking(QuickTalk-LAM) → WebRTC → Browser │ Innovations: Multimodal (voice+text+video) │ Real-time (GPU inference < 1s) │ Production-ready (admin panel + multi-scenic + 140K real tourist data)
+  </div>
+</div>
+
+<script>
+// ── 所有节点 ──
+const frontendNodes = document.querySelectorAll('.node.frontend')
+const backendNodes  = document.querySelectorAll('.node.backend')
+const aiNodes       = document.querySelectorAll('.node.ai')
+const infraNodes    = document.querySelectorAll('.node.infra')
+const allLayers     = [frontendNodes, backendNodes, aiNodes, infraNodes]
+const allNodes      = [...frontendNodes, ...backendNodes, ...aiNodes, ...infraNodes]
+const allArrows     = document.querySelectorAll('.arrow')
+const allConnectors = document.querySelectorAll('.connector')
+const tags          = document.querySelectorAll('.tag')
+const badge         = document.getElementById('phaseBadge')
+const archContainer = document.getElementById('archContainer')
+const innovationPanel = document.getElementById('innovationPanel')
+const cards = [document.getElementById('card1'), document.getElementById('card2'), document.getElementById('card3')]
+
+const arrowCounts = [3, 3, 5, 3]   // 每层已亮箭头数（累计）
+const connCounts  = [3, 6, 11, 13]
+
+// ── 点亮标签（累计） ──
+const TAG_ORDER = [[0,1],[2],[3,4,5],[6,7,8,9],[10,11,12,13,14]]
+let litTags = new Set()
+function lightTags(layerIdx) {
+  TAG_ORDER[layerIdx].forEach(i => litTags.add(i))
+  tags.forEach((t, i) => t.classList.toggle('lit', litTags.has(i)))
+}
+
+// ── 点亮层 + 箭头 + 连接器（累计） ──
+function highlightLayer(idx) {
+  allLayers[idx].forEach(n => n.classList.add('highlight'))
+  for (let i = 0; i < arrowCounts[idx]; i++) allArrows[i].classList.add('active')
+  for (let i = 0; i < connCounts[idx]; i++) allConnectors[i].classList.add('active')
+  lightTags(idx)
+}
+
+function setBadge(cfg) {
+  badge.textContent = cfg.name
+  badge.style.background = cfg.bg
+  badge.style.color = cfg.color
+  badge.style.borderColor = cfg.border
+}
+
+// ── 精确 30 秒时间线（setTimeout 链，不循环） ──
+const BADGES = [
+  { name: '架构总览 — 前端展示层', bg: 'rgba(102,126,234,0.2)', color: '#667eea', border: 'rgba(102,126,234,0.3)' },
+  { name: '架构总览 — API 网关层',   bg: 'rgba(240,147,251,0.2)', color: '#f093fb', border: 'rgba(240,147,251,0.3)' },
+  { name: '架构总览 — AI 引擎层',    bg: 'rgba(79,172,254,0.2)',  color: '#4facfe', border: 'rgba(79,172,254,0.3)' },
+  { name: '架构总览 — 基础设施层',   bg: 'rgba(67,233,123,0.2)',  color: '#43e97b', border: 'rgba(67,233,123,0.3)' },
+]
+
+// t=0s:  前端层
+highlightLayer(0)
+setBadge(BADGES[0])
+
+// t=5s:  API 层
+setTimeout(() => { highlightLayer(1); setBadge(BADGES[1]) }, 5000)
+
+// t=10s: AI 引擎层
+setTimeout(() => { highlightLayer(2); setBadge(BADGES[2]) }, 10000)
+
+// t=15s: 基础设施层
+setTimeout(() => { highlightLayer(3); setBadge(BADGES[3]); allNodes.forEach(n => n.classList.add('highlight')) }, 15000)
+
+// t=19s: 过渡 — 淡化架构图，浮现创新面板
+setTimeout(() => {
+  archContainer.style.opacity = '0.35'
+  innovationPanel.classList.add('show')
+  setBadge({ name: '三大创新点', bg: 'rgba(200,150,62,0.2)', color: '#c8963e', border: 'rgba(200,150,62,0.3)' })
+}, 19000)
+
+// t=23s: 多模态
+setTimeout(() => { cards[0].classList.add('pop') }, 23000)
+
+// t=28s: 实时性
+setTimeout(() => { cards[1].classList.add('pop') }, 28000)
+
+// t=33s: 可落地
+setTimeout(() => { cards[2].classList.add('pop') }, 33000)
+</script>
+
+</body>
+</html>

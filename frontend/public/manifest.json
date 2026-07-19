@@ -1,0 +1,14 @@
+{
+  "name": "AI智能导游 - 灵山胜境",
+  "short_name": "AI导游",
+  "description": "多模态AI数字人智能导游，为您提供景区讲解、路线推荐等服务",
+  "start_url": "/tourist",
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#c8963e",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

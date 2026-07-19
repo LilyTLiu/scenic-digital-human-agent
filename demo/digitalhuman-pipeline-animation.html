@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>3D数字人实时渲染链路 - 动效演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    display: flex; justify-content: center; align-items: center;
+    min-height: 100vh; font-family: 'PingFang SC','Microsoft YaHei',sans-serif;
+    overflow: hidden;
+  }
+
+  .pipeline {
+    display: flex; align-items: center; gap: 0;
+    padding: 60px 40px;
+  }
+
+  .node {
+    width: 155px; height: 90px;
+    border-radius: 16px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    position: relative; z-index: 2;
+    font-size: 14px; font-weight: 600; color: #fff;
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    transition: transform 0.3s, box-shadow 0.3s;
+    text-align: center;
+  }
+  .node .icon { font-size: 28px; margin-bottom: 2px; }
+  .node .label { font-size: 11px; opacity: 0.7; margin-top: 3px; }
+  .node .detail { font-size: 10px; opacity: 0.5; margin-top: 1px; }
+
+  .node.text    { background: linear-gradient(135deg, #667eea, #764ba2); }
+  .node.tts     { background: linear-gradient(135deg, #f093fb, #f5576c); }
+  .node.lam     { background: linear-gradient(135deg, #f12711, #f5af19); }
+  .node.rtc     { background: linear-gradient(135deg, #11998e, #38ef7d); }
+
+  .node.highlight {
+    transform: scale(1.08);
+    box-shadow: 0 0 50px rgba(255,255,255,0.35);
+  }
+
+  /* ── GPU 风扇旋转（LAM 节点） ── */
+  .gpu-fan {
+    position: absolute; top: -44px; left: 50%; transform: translateX(-50%);
+    width: 36px; height: 36px;
+    border: 3px solid rgba(245,175,25,0.5);
+    border-top-color: #f5af19;
+    border-radius: 50%;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .node.lam.highlight .gpu-fan {
+    opacity: 1;
+    animation: fanSpin 0.6s linear infinite;
+  }
+  @keyframes fanSpin {
+    0% { transform: translateX(-50%) rotate(0deg); }
+    100% { transform: translateX(-50%) rotate(360deg); }
+  }
+
+  /* ── 口型脉冲（WebRTC 节点） ── */
+  .lip-pulse {
+    position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; opacity: 0; transition: opacity 0.3s;
+  }
+  .node.rtc.highlight .lip-pulse { opacity: 1; }
+  .lip-pulse .lip {
+    width: 10px; height: 14px; border-radius: 5px;
+    background: #38ef7d;
+    animation: lipMove 0.3s ease-in-out infinite alternate;
+  }
+  .lip-pulse .lip:nth-child(2) { animation-delay: 0.15s; }
+  @keyframes lipMove {
+    0% { transform: scaleY(0.3); }
+    100% { transform: scaleY(1); }
+  }
+
+  /* ── 音频波纹（TTS 节点） ── */
+  .audio-rings {
+    position: absolute; top: -48px; left: 50%; transform: translateX(-50%);
+    opacity: 0; transition: opacity 0.3s;
+  }
+  .node.tts.highlight .audio-rings { opacity: 1; }
+  .ring {
+    position: absolute; border-radius: 50%;
+    border: 2px solid rgba(240,147,251,0.6);
+    animation: ringOut 0.8s ease-out infinite;
+  }
+  .ring:nth-child(1) { animation-delay: 0s; }
+  .ring:nth-child(2) { animation-delay: 0.25s; }
+  .ring:nth-child(3) { animation-delay: 0.5s; }
+  @keyframes ringOut {
+    0%   { width: 8px; height: 8px; left: -4px; top: 12px; opacity: 1; }
+    100% { width: 50px; height: 50px; left: -25px; top: -9px; opacity: 0; }
+  }
+
+  .pipe {
+    width: 110px; height: 4px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 2px;
+    position: relative; z-index: 1;
+    overflow: visible;
+  }
+
+  .dot {
+    position: absolute;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 12px 4px rgba(100,200,255,0.8),
+                0 0 30px 8px rgba(100,200,255,0.4);
+    top: -3px; left: -10px;
+    animation: flow 1.8s ease-in-out infinite;
+  }
+  .pipe:nth-child(2) .dot { animation-delay: 0s; }
+  .pipe:nth-child(4) .dot { animation-delay: 0.6s; }
+  .pipe:nth-child(6) .dot { animation-delay: 1.2s; }
+
+  @keyframes flow {
+    0%   { left: -10px; opacity: 0; }
+    15%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: calc(100% - 10px); opacity: 0; }
+  }
+
+  /* ── 延迟标注（管道上方） ── */
+  .latency-tag {
+    position: absolute; top: -26px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; color: rgba(255,255,255,0.35); white-space: nowrap;
+  }
+
+  /* ── 信息栏 ── */
+  .step-info {
+    position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.5); font-size: 13px;
+    text-align: center; transition: all 0.5s;
+  }
+  .step-info .step-title { font-size: 16px; color: #fff; margin-bottom: 4px; }
+
+  /* ── 总延迟计数器 ── */
+  .latency-counter {
+    position: absolute; top: 120px; left: 50%; transform: translateX(-50%);
+    font-size: 36px; font-weight: 700; color: #38ef7d;
+    font-family: 'Courier New', monospace;
+    text-shadow: 0 0 20px rgba(56,239,125,0.3);
+  }
+  .latency-counter .unit { font-size: 14px; color: rgba(255,255,255,0.5); }
+
+  /* ── 标题 ── */
+  .title {
+    position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+    font-size: 22px; color: #fff; font-weight: 700; letter-spacing: 2px;
+  }
+  .subtitle {
+    position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; color: rgba(255,255,255,0.35);
+  }
+
+  /* ── RTX 4060 标签 ── */
+  .gpu-badge {
+    position: absolute; top: 100px; right: 60px;
+    padding: 6px 16px; border-radius: 20px;
+    background: rgba(245,175,25,0.15);
+    border: 1px solid rgba(245,175,25,0.3);
+    color: #f5af19; font-size: 12px; font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .gpu-badge .dot-live {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: #f5af19; margin-right: 6px;
+    animation: livePulse 1s ease-in-out infinite;
+  }
+  @keyframes livePulse {
+    0%,100% { opacity: 1; }
+    50%     { opacity: 0.3; }
+  }
+</style>
+</head>
+<body>
+
+<div class="title">灵山胜境 AI 导游 · 3D 数字人实时渲染</div>
+<div class="subtitle">WebRTC 流媒体 + QuickTalk LAM + GPU 推理</div>
+
+<div class="latency-counter">
+  <span id="latencyNum">847</span><span class="unit"> ms 端到端延迟</span>
+</div>
+
+<div class="gpu-badge">
+  <span class="dot-live"></span> RTX 4060 · QuickTalk LAM
+</div>
+
+<div class="pipeline">
+  <!-- 节点1：AI 文本 -->
+  <div class="node text" id="n1">
+    <div class="icon">📄</div>
+    <div>AI 回复文本</div>
+    <div class="label">DeepSeek 生成</div>
+    <div class="detail">"灵山大佛通高88米..."</div>
+  </div>
+
+  <div class="pipe">
+    <div class="latency-tag">~200ms</div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- 节点2：TTS -->
+  <div class="node tts" id="n2">
+    <div class="audio-rings">
+      <div class="ring"></div>
+      <div class="ring"></div>
+      <div class="ring"></div>
+    </div>
+    <div class="icon">🔊</div>
+    <div>语音合成</div>
+    <div class="label">Edge-TTS + SSML</div>
+    <div class="detail">MP3 音频流</div>
+  </div>
+
+  <div class="pipe">
+    <div class="latency-tag">~300ms</div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- 节点3：QuickTalk LAM -->
+  <div class="node lam" id="n3">
+    <div class="gpu-fan"></div>
+    <div class="icon">🎮</div>
+    <div>口型推理</div>
+    <div class="label">QuickTalk LAM</div>
+    <div class="detail">音频→面部顶点</div>
+  </div>
+
+  <div class="pipe">
+    <div class="latency-tag">~350ms</div>
+    <div class="dot"></div>
+  </div>
+
+  <!-- 节点4：WebRTC -->
+  <div class="node rtc" id="n4">
+    <div class="lip-pulse">
+      <div class="lip"></div>
+      <div class="lip"></div>
+    </div>
+    <div class="icon">📹</div>
+    <div>视频流输出</div>
+    <div class="label">WebRTC P2P</div>
+    <div class="detail">3D 数字人画面</div>
+  </div>
+</div>
+
+<div class="step-info" id="stepInfo">
+  <div class="step-title">Step 1: AI 生成回复文本</div>
+  <div>DeepSeek RAG 对话 → 结构化导游讲解文本</div>
+</div>
+
+<script>
+  // ── 延迟数字跳动 ──
+  const latencyEl = document.getElementById('latencyNum');
+  setInterval(() => {
+    const base = 780;
+    const jitter = Math.floor(Math.random() * 135);
+    latencyEl.textContent = base + jitter;
+  }, 800);
+
+  // ── 阶段循环 ──
+  const nodes = [n1, n2, n3, n4];
+  const steps = [
+    { title: 'Step 1: AI 生成回复', desc: 'DeepSeek + RAG → 完整中文导游讲解文本' },
+    { title: 'Step 2: Edge-TTS 语音合成', desc: 'SSML 控制声线风格/语速/音调 → 生成 MP3 音频 → 约 200ms' },
+    { title: 'Step 3: QuickTalk LAM 口型推理', desc: 'RTX 4060 GPU 本地推理 → 音频特征 → 3D 面部顶点坐标 → 约 300ms' },
+    { title: 'Step 4: WebRTC 实时推流', desc: 'RTCPeerConnection P2P → 浏览器 video 标签渲染 → 口型同步输出 → 总延迟 < 1s' },
+  ];
+  let current = 0;
+  setInterval(() => {
+    nodes.forEach(n => n.classList.remove('highlight'));
+    nodes[current].classList.add('highlight');
+    document.getElementById('stepInfo').innerHTML =
+      `<div class="step-title">${steps[current].title}</div><div>${steps[current].desc}</div>`;
+    current = (current + 1) % 4;
+  }, 2800);
+</script>
+
+</body>
+</html>
