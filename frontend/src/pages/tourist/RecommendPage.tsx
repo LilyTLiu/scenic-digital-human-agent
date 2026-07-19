@@ -21,7 +21,7 @@ const routes: Route[] = [
     icon: '🏛️',
     duration: '约6小时',
     type: '深度游',
-    color: '#8b5e3c',
+    color: '#e85d3a',
     tags: ['历史', '文化', '佛教'],
     desc: '从唐玄奘传说到现代灵山，全面感受千年佛教文化积淀，适合对历史有浓厚兴趣的游客。',
     stops: [
@@ -39,7 +39,7 @@ const routes: Route[] = [
     icon: '🌿',
     duration: '约5小时',
     type: '全景游',
-    color: '#2d8a7b',
+    color: '#00b894',
     tags: ['自然', '摄影', '休闲'],
     desc: '穿梭于禅意园林与太湖风光之间，在自然美景中感受佛教文化的宁静致远。',
     stops: [
@@ -56,7 +56,7 @@ const routes: Route[] = [
     icon: '👨‍👩‍👧',
     duration: '约4小时',
     type: '轻松游',
-    color: '#e88b7e',
+    color: '#f39c12',
     tags: ['亲子', '互动', '体验'],
     desc: '寓教于乐的轻松路线，让孩子在互动中了解佛教文化，全家共享美好时光。',
     stops: [
