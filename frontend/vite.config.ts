@@ -9,14 +9,20 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://localhost:8001',
         changeOrigin: true,
       },
       '/ot': {
-        target: 'http://localhost:8210',
+        target: 'http://localhost:8787',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/ot/, ''),
       },
+      // Proxy OAC WebUI (port 8787) through Vite
+      '/ui': { target: 'http://localhost:8787', changeOrigin: true, ws: true },
+      '/assets': { target: 'http://localhost:8787', changeOrigin: true, ws: true },
+      '/gradio': { target: 'http://localhost:8787', changeOrigin: true, ws: true },
+      '/file': { target: 'http://localhost:8787', changeOrigin: true, ws: true },
+      '/queue': { target: 'http://localhost:8787', changeOrigin: true, ws: true },
     },
   },
 })

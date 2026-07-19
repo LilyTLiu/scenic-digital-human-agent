@@ -21,6 +21,9 @@ class ChatRequest(BaseModel):
     scenic_spot: str = "灵山胜境"
     session_id: str = ""
     stream: bool = False
+    persona_name: str = ""
+    persona_role: str = ""
+    persona_style: str = ""
 
 
 class ChatResponse(BaseModel):
@@ -75,8 +78,13 @@ async def send_message(req: ChatRequest, db: Session = Depends(get_db)):
         results = search(collection, req.message, top_k=5)
         # 2. 加载对话历史
         history = _load_history(session_id, db)
-        # 3. 构建提示词（含RAG知识 + 对话历史）
-        prompt = build_prompt(req.message, results, req.scenic_spot, history)
+        # 3. 构建提示词（含RAG知识 + 对话历史 + 角色身份）
+        prompt = build_prompt(
+            req.message, results, req.scenic_spot, history,
+            persona_name=req.persona_name or None,
+            persona_role=req.persona_role or None,
+            persona_style=req.persona_style or None,
+        )
         # 4. 调用DeepSeek
         reply = await chat(prompt)
         # 5. 持久化
@@ -105,7 +113,12 @@ async def send_message_stream(req: ChatRequest, db: Session = Depends(get_db)):
         session_id = req.session_id or str(uuid.uuid4())[:8]
         results = search(collection, req.message, top_k=5)
         history = _load_history(session_id, db)
-        prompt = build_prompt(req.message, results, req.scenic_spot, history)
+        prompt = build_prompt(
+            req.message, results, req.scenic_spot, history,
+            persona_name=req.persona_name or None,
+            persona_role=req.persona_role or None,
+            persona_style=req.persona_style or None,
+        )
 
         # 收集完整回复用于持久化
         full_reply_parts = []

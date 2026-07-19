@@ -56,6 +56,12 @@ async def send_code(req: SendCodeRequest):
     return {"success": True}
 
 
+@router.get("/codes")
+async def get_codes():
+    """查看当前验证码（仅演示模式使用）"""
+    return {"success": True, "codes": {k: v for k, v in _codes.items()}}
+
+
 @router.post("/login")
 async def login(req: LoginRequest, db: Session = Depends(get_db)):
     """验证码登录"""

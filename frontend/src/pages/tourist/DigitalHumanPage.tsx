@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PERSONAS, type PersonaId, DEFAULT_PERSONA } from '../../config/personas'
 
-const isHttps = window.location.protocol === 'https:'
-const OAC_BASE = isHttps ? '' : 'http://localhost:8787'
+const OAC_BASE = 'http://localhost:8787'
 
 const personaList = Object.values(PERSONAS)
 
@@ -13,64 +12,17 @@ export default function DigitalHumanPage() {
   const personaParam = searchParams.get('persona') as PersonaId | null
   const activePersona: PersonaId = personaParam && personaParam in PERSONAS ? personaParam : DEFAULT_PERSONA
   const persona = PERSONAS[activePersona]
-  const [iframeReady, setIframeReady] = useState(false)
   const [loadError, setLoadError] = useState(false)
   const [switching, setSwitching] = useState(false)
-  const [loadStamp, setLoadStamp] = useState(Date.now())
-  const iframeRef = useRef<HTMLIFrameElement>(null)
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const loadIframe = useCallback((stamp: number) => {
-    if (!iframeRef.current) return
-    iframeRef.current.src = 'about:blank'
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (iframeRef.current) {
-          iframeRef.current.src = `${OAC_BASE}/ui/index.html?t=${stamp}`
-        }
-      })
-    })
-  }, [])
-
-  // Init on mount, cleanup on unmount
-  useEffect(() => {
-    const stamp = Date.now()
-    setLoadStamp(stamp)
-    return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-      if (iframeRef.current) {
-        iframeRef.current.src = 'about:blank'
-      }
-    }
-  }, [])
-
-  // Load iframe when loadStamp changes
-  useEffect(() => {
-    loadIframe(loadStamp)
-  }, [loadStamp, loadIframe])
-
-  // 8-second error timeout
-  useEffect(() => {
-    if (iframeReady || loadError) return
-    if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-    errorTimerRef.current = setTimeout(() => {
-      setLoadError(true)
-    }, 8000)
-    return () => {
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current)
-    }
-  }, [loadStamp, iframeReady, loadError])
-
-  const handleReload = useCallback(() => {
-    setLoadError(false)
-    setIframeReady(false)
-    setLoadStamp(Date.now())
+  // 打开数字人页面
+  const openOAC = useCallback(() => {
+    window.open(`${OAC_BASE}/ui/index.html`, '_blank', 'noopener,noreferrer')
   }, [])
 
   const selectPersona = useCallback(async (id: PersonaId) => {
     if (id === activePersona || switching) return
     setSwitching(true)
-    setIframeReady(false)
     setSearchParams({ persona: id })
     try {
       const resp = await fetch('/api/admin/switch-persona', {
@@ -79,9 +31,7 @@ export default function DigitalHumanPage() {
         body: JSON.stringify({ persona: id }),
       })
       const data = await resp.json()
-      if (data.success) {
-        setLoadStamp(Date.now())
-      } else {
+      if (!data.success) {
         setLoadError(true)
       }
     } catch {
@@ -91,54 +41,50 @@ export default function DigitalHumanPage() {
     }
   }, [activePersona, switching, setSearchParams])
 
-  const onIframeLoad = useCallback(() => {
-    setIframeReady(true)
-    setLoadError(false)
-  }, [])
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', background: '#1a1a2e' }}>
-      {/* 顶部角色栏 */}
-      <div style={{
-        background: 'linear-gradient(160deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-        padding: '8px 12px',
-        display: 'flex', alignItems: 'center', gap: 8,
-        flexShrink: 0,
-      }}>
-        <button
-          onClick={() => navigate('/tourist/chat')}
-          style={{
-            background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8,
-            color: '#fff', padding: '6px 8px', cursor: 'pointer', display: 'flex',
-            alignItems: 'center', gap: 4, fontSize: 12,
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          返回
-        </button>
-        <div style={{ flex: 1 }}>
-          <div style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>
-            AI导游 · {persona.name}
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
-            {persona.style} · 3D数字人
-          </div>
-        </div>
-        <div style={{
-          width: 8, height: 8, borderRadius: '50%',
-          background: switching ? '#f0ad4e' : loadError ? '#d9534f' : iframeReady ? '#4cd964' : '#f0ad4e',
-          boxShadow: `0 0 6px ${switching ? '#f0ad4e' : loadError ? '#d9534f' : iframeReady ? '#4cd964' : '#f0ad4e'}80`,
-        }} />
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)',
+      background: 'linear-gradient(160deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
+      alignItems: 'center', justifyContent: 'center', color: '#fff', gap: 24,
+      padding: 24,
+    }}>
+      {/* 角色选择 */}
+      <div style={{ textAlign: 'center', marginBottom: 8 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600, letterSpacing: 2 }}>3D 数字人导游</h2>
       </div>
 
-      {/* 角色快速选择 */}
-      <div style={{
-        display: 'flex', gap: 6, padding: '8px 12px',
-        background: 'rgba(255,255,255,0.03)', flexShrink: 0,
-        overflowX: 'auto',
-      }}>
+      {/* 当前导游大图 */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          width: 130, height: 130, borderRadius: '50%', margin: '0 auto',
+          overflow: 'hidden', position: 'relative',
+          boxShadow: `0 0 30px ${persona.color}60, 0 0 60px ${persona.color}30`,
+          border: `3px solid ${persona.color}`,
+          transition: 'all 0.4s ease',
+        }}>
+          {persona.image && (
+            <img src={persona.image} alt={persona.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+            />
+          )}
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <span style={{
+            fontSize: 20, fontWeight: 700, color: '#fff', display: 'block',
+          }}>{persona.name}</span>
+          <span style={{
+            display: 'inline-block', marginTop: 6, padding: '2px 12px', borderRadius: 10,
+            background: persona.color + '30', color: persona.color,
+            fontSize: 12, fontWeight: 500,
+          }}>{persona.role}</span>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 8 }}>
+            {persona.style} · 在线
+          </p>
+        </div>
+      </div>
+
+      {/* 导游选择卡片 */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
         {personaList.map((p) => {
           const active = activePersona === p.id
           return (
@@ -147,112 +93,92 @@ export default function DigitalHumanPage() {
               onClick={() => selectPersona(p.id)}
               disabled={switching}
               style={{
-                padding: '5px 12px', borderRadius: 16,
-                border: active ? `1.5px solid ${p.color}` : '1px solid rgba(255,255,255,0.12)',
-                background: active ? `${p.color}25` : 'rgba(255,255,255,0.05)',
-                color: active ? p.color : 'rgba(255,255,255,0.7)',
-                fontSize: 12, fontWeight: active ? 600 : 400,
-                cursor: switching ? 'wait' : 'pointer', whiteSpace: 'nowrap',
-                transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', gap: 4,
-                opacity: switching ? 0.5 : 1,
+                padding: 0, border: 'none', background: 'transparent',
+                cursor: switching ? 'wait' : 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                opacity: active ? 1 : 0.55,
+                transition: 'all 0.25s',
+                filter: active ? 'none' : 'grayscale(0.6)',
+                transform: active ? 'scale(1.05)' : 'scale(0.95)',
               }}
+              onMouseOver={e => { if (!active) { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'scale(1)' } }}
+              onMouseOut={e => { if (!active) { e.currentTarget.style.opacity = '0.55'; e.currentTarget.style.transform = 'scale(0.95)' } }}
             >
-              {p.image && (
-                <img src={p.image} alt={p.name}
-                  style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover', objectPosition: 'center top' }}
-                />
-              )}
-              {p.name}
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%', overflow: 'hidden',
+                border: active ? `2.5px solid ${p.color}` : '2px solid rgba(255,255,255,0.15)',
+                boxShadow: active ? `0 0 16px ${p.color}50` : 'none',
+                transition: 'all 0.25s',
+              }}>
+                {p.image && (
+                  <img src={p.image} alt={p.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+                  />
+                )}
+              </div>
+              <span style={{
+                fontSize: 12, fontWeight: active ? 600 : 400,
+                color: active ? p.color : 'rgba(255,255,255,0.5)',
+              }}>{p.name}</span>
             </button>
           )
         })}
       </div>
 
-      {/* iframe 数字人区域 */}
-      <div style={{ flex: 1, position: 'relative', background: '#000' }}>
-        <iframe
-          ref={iframeRef}
-          title="LAM 3D Digital Human"
-          onLoad={onIframeLoad}
-          style={{
-            width: '100%', height: '100%', border: 'none',
-            opacity: iframeReady ? 1 : 0.3,
-            transition: 'opacity 0.5s',
-          }}
-          allow="microphone; camera; autoplay"
-        />
-        {loadError && (
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex',
-            flexDirection: 'column', alignItems: 'center',
-            justifyContent: 'center', color: '#fff', gap: 16,
-            background: 'rgba(0,0,0,0.85)',
-          }}>
-            <div style={{ fontSize: 48 }}>🤖</div>
-            <div style={{ fontSize: 16, fontWeight: 600 }}>数字人加载超时</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: '0 24px', lineHeight: 1.6 }}>
-              OAC 服务可能未启动或端口冲突：<br />
-              <code style={{
-                background: 'rgba(255,255,255,0.1)', padding: '4px 8px',
-                borderRadius: 4, fontSize: 12, marginTop: 8, display: 'inline-block',
-              }}>
-                D:\contest\start-oac.bat
-              </code>
-            </div>
-            <button
-              onClick={handleReload}
-              style={{
-                padding: '8px 24px', borderRadius: 20,
-                background: 'var(--gold, #c8963e)', border: 'none',
-                color: '#fff', fontSize: 14, cursor: 'pointer',
-              }}
-            >重新连接</button>
-          </div>
-        )}
-        {(!iframeReady && !loadError) && (
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            flexDirection: 'column', gap: 12,
-            pointerEvents: 'none',
-          }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: '50%',
-              border: '3px solid rgba(255,255,255,0.15)',
-              borderTopColor: '#c8963e',
-              animation: 'spin 0.8s linear infinite',
-            }} />
-            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>
-              {switching ? '正在切换角色...' : '正在加载3D数字人...'}
-            </span>
-          </div>
-        )}
+      {/* 打开按钮 */}
+      <button
+        onClick={openOAC}
+        style={{
+          padding: '14px 48px', borderRadius: 28,
+          background: 'linear-gradient(135deg, #c8963e, #e8b84e)',
+          border: 'none', color: '#fff', fontSize: 16, fontWeight: 600,
+          cursor: 'pointer', boxShadow: '0 4px 20px rgba(200,150,62,0.4)',
+          transition: 'transform 0.2s, box-shadow 0.2s',
+          marginTop: 8,
+        }}
+        onMouseOver={e => {
+          e.currentTarget.style.transform = 'scale(1.05)'
+          e.currentTarget.style.boxShadow = '0 6px 25px rgba(200,150,62,0.5)'
+        }}
+        onMouseOut={e => {
+          e.currentTarget.style.transform = 'scale(1)'
+          e.currentTarget.style.boxShadow = '0 4px 20px rgba(200,150,62,0.4)'
+        }}
+      >
+        🚀 打开 3D 数字人
+      </button>
+
+      {loadError && (
+        <div style={{ color: '#d9534f', fontSize: 13, padding: '8px 16px', background: 'rgba(217,83,79,0.1)', borderRadius: 8 }}>
+          角色切换失败，请重试
+        </div>
+      )}
+
+      {/* 说明 */}
+      <div style={{
+        marginTop: 20, padding: '16px 20px', borderRadius: 12,
+        background: 'rgba(255,255,255,0.05)', maxWidth: 400,
+        textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+          3D 数字人页面将在新窗口中打开。<br />
+          需要浏览器允许弹出窗口（当前窗口不会被拦截）。
+        </div>
       </div>
 
-      {/* 底部操作栏 */}
-      <div style={{
-        padding: '8px 12px', background: 'rgba(255,255,255,0.03)',
-        flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8,
-        justifyContent: 'space-between',
-      }}>
-        <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>
-          点击上方角色按钮即可切换AI导游形象
-        </span>
+      {/* 底部按钮 */}
+      <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
         <button
-          onClick={() => navigate(`/tourist/chat?persona=${activePersona}`)}
+          onClick={() => navigate('/tourist/chat')}
           style={{
-            padding: '4px 12px', borderRadius: 14,
+            padding: '8px 20px', borderRadius: 16,
             border: '1px solid rgba(255,255,255,0.2)',
             background: 'transparent', color: 'rgba(255,255,255,0.7)',
-            fontSize: 11, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', gap: 4,
+            fontSize: 13, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-          </svg>
-          文字对话
+          💬 文字对话
         </button>
       </div>
     </div>

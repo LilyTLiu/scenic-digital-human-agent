@@ -14,6 +14,16 @@ export interface Persona {
   emoji: string
   /** edge-tts voice name */
   voice: string
+  /** edge-tts 表达风格 (friendly/calm/gentle/cheerful/...) */
+  tts_style?: string
+  /** edge-tts 语速调整 (-50% ~ +50%) */
+  tts_rate?: string
+  /** edge-tts 音调调整 */
+  tts_pitch?: string
+  /** 浏览器 TTS 降级时的语速 (0.1 ~ 2.0) */
+  browser_rate: number
+  /** 浏览器 TTS 降级时的音调 (0.1 ~ 2.0) */
+  browser_pitch: number
   /** 角色照片 */
   image?: string
   /** Canvas 视觉特征 */
@@ -38,6 +48,11 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     color: '#c8963e',
     emoji: '👩‍💼',
     voice: 'zh-CN-XiaoxiaoNeural',
+    tts_style: 'friendly',
+    tts_rate: '+10%',
+    tts_pitch: '+5Hz',
+    browser_rate: 1.15,
+    browser_pitch: 1.3,
     image: '/character/xiaoling.png',
     avatar3d: '/avatars/brunette.glb',
     visual: {
@@ -57,6 +72,11 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     color: '#5d7a8e',
     emoji: '🧘',
     voice: 'zh-CN-YunxiNeural',
+    tts_style: 'calm',
+    tts_rate: '-5%',
+    tts_pitch: '-3Hz',
+    browser_rate: 0.8,
+    browser_pitch: 0.75,
     image: '/character/xiaoshan.png',
     avatar3d: '/avatars/avaturn.glb',
     visual: {
@@ -76,6 +96,11 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     color: '#5d8a7b',
     emoji: '👩‍🎨',
     voice: 'zh-CN-XiaoyiNeural',
+    tts_style: 'gentle',
+    tts_rate: '+5%',
+    tts_pitch: '+8Hz',
+    browser_rate: 1.0,
+    browser_pitch: 1.2,
     image: '/character/miaoyin.png',
     avatar3d: '/avatars/brunette-t.glb',
     visual: {
@@ -94,7 +119,12 @@ export const PERSONAS: Record<PersonaId, Persona> = {
     style: '禅意智慧',
     color: '#7a6a5a',
     emoji: '🧘‍♂️',
-    voice: 'zh-CN-YunjianNeural',
+    voice: 'zh-CN-YunyeNeural',
+    tts_style: 'calm',
+    tts_rate: '-10%',
+    tts_pitch: '-8Hz',
+    browser_rate: 0.7,
+    browser_pitch: 0.65,
     image: '/character/xiaochan.png',
     avatar3d: '/avatars/avatarsdk.glb',
     visual: {

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { userApi } from '../services/api'
 
 interface Props {
@@ -14,7 +14,26 @@ export default function LoginModal({ open, onClose, onLogin }: Props) {
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [liveCode, setLiveCode] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // 进入验证码步骤后轮询获取验证码，取到后自动填入
+  useEffect(() => {
+    if (step !== 'code' || !phone) return
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch('/api/user/codes')
+        const data = await res.json()
+        if (data.codes?.[phone]) {
+          const lc = data.codes[phone]
+          setLiveCode(lc)
+          setCode(lc)  // 自动填入
+          clearInterval(poll)
+        }
+      } catch {}
+    }, 1000)
+    return () => clearInterval(poll)
+  }, [step, phone])
 
   const handleSendCode = useCallback(async () => {
     if (!/^1\d{10}$/.test(phone)) {
@@ -141,12 +160,30 @@ export default function LoginModal({ open, onClose, onLogin }: Props) {
           }}>{error}</div>
         )}
 
-        {/* 提示 */}
+        {/* 验证码提示 — 演示模式直接显示 */}
         <div style={{
-          marginTop: error ? 8 : 16, padding: '8px 12px', borderRadius: 8,
-          background: '#fdf8f0', fontSize: 11, color: '#9c948c', textAlign: 'center',
+          marginTop: error ? 8 : 16, padding: '10px 14px', borderRadius: 10,
+          background: liveCode ? '#f0f9f0' : '#fdf8f0',
+          border: liveCode ? '1px solid #d4edda' : '1px solid #f0e6d0',
+          textAlign: 'center',
+          transition: 'all 0.3s',
         }}>
-          演示模式：验证码已打印在后端控制台
+          {liveCode ? (
+            <div>
+              <div style={{ fontSize: 11, color: '#6c9c6c', marginBottom: 4 }}>演示模式验证码</div>
+              <div style={{
+                fontSize: 28, fontWeight: 800, color: '#2d8a4e', letterSpacing: 6,
+                fontFamily: 'monospace',
+              }}>{liveCode}</div>
+              <div style={{ fontSize: 10, color: '#6c9c6c', marginTop: 4 }}>
+                点击下方输入框自动填入
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: '#9c948c' }}>
+              正在获取验证码...
+            </div>
+          )}
         </div>
 
         {/* 按钮 */}

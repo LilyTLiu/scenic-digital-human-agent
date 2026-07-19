@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Emotion } from '../../components/DigitalHuman'
 import { chatApi, voiceApi, adminApi } from '../../services/api'
 import { getPersona, PERSONAS } from '../../config/personas'
-import { findBestVoice, findFallbackVoice } from '../../utils/voice'
+import { findPersonaVoice, findBestVoice, findFallbackVoice } from '../../utils/voice'
 import { useDigitalHuman } from '../../hooks/useDigitalHuman'
 
 interface ChatMessage {
@@ -171,7 +171,9 @@ export default function ChatPage() {
     const accumulator = { text: '' }
 
     const controller = chatApi.sendStream(
-      { message: text.trim(), scenic_spot: 'lingshan', session_id: sessionIdRef.current },
+      { message: text.trim(), scenic_spot: 'lingshan', session_id: sessionIdRef.current,
+        persona_name: personaRef.current.name, persona_role: personaRef.current.role,
+        persona_style: personaRef.current.style },
       (token: string) => {
         accumulator.text += token
         const msgs = [...messagesRef.current]
@@ -187,7 +189,11 @@ export default function ChatPage() {
         setLoading(false)
         if (realMode && accumulator.text) {
           try {
-            const audioBlob = await voiceApi.tts(accumulator.text, persona.voice)
+            const p = personaRef.current
+            const audioBlob = await voiceApi.tts(
+              accumulator.text, p.voice,
+              p.tts_style, p.tts_rate, p.tts_pitch,
+            )
             dh.speakAudio(audioBlob)
           } catch (e) { console.error('TTS+speakAudio failed:', e) }
         }
@@ -289,35 +295,14 @@ export default function ChatPage() {
     setEmotion(detectEmotion(text))
     setMouthOpen(0)
 
-    const voice = findBestVoice(personaRef.current.voice)
-    if (voice) {
-      const u = new SpeechSynthesisUtterance(text)
-      u.voice = voice; u.lang = 'zh-CN'; u.rate = 1.05; u.pitch = 1.0
-      const start = Date.now()
-      const estimatedDuration = text.length * 280
-      const mouthInterval = setInterval(() => {
-        if (playIdRef.current !== currentId) { clearInterval(mouthInterval); return }
-        const elapsed = Date.now() - start
-        if (elapsed > estimatedDuration) { clearInterval(mouthInterval); setMouthOpen(0); return }
-        setMouthOpen(0.3 + 0.7 * Math.abs(Math.sin(elapsed / 120)))
-      }, 50)
-      u.onend = () => {
-        clearInterval(mouthInterval)
-        if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1; setEmotion('happy'); setMouthOpen(0) }
-      }
-      u.onerror = () => {
-        clearInterval(mouthInterval)
-        if (playIdRef.current === currentId) speakViaEdgeTts(text, currentId, msgIdx)
-      }
-      window.speechSynthesis.speak(u)
-      return
-    }
+    // 优先使用后端 edge-tts（声音自然度高，支持风格/语速/音调控制）
     speakViaEdgeTts(text, currentId, msgIdx)
   }
 
   const speakViaEdgeTts = async (text: string, currentId: number, msgIdx: number) => {
     try {
-      const ab = await voiceApi.tts(text, personaRef.current.voice)
+      const p = personaRef.current
+      const ab = await voiceApi.tts(text, p.voice, p.tts_style, p.tts_rate, p.tts_pitch)
       if (playIdRef.current !== currentId) return
       const url = URL.createObjectURL(ab)
       const a = new Audio(url)
@@ -333,11 +318,39 @@ export default function ChatPage() {
       a.play()
     } catch {
       if (playIdRef.current !== currentId) return
-      const fallback = findFallbackVoice()
-      const u = new SpeechSynthesisUtterance(text)
-      u.voice = fallback; u.lang = 'zh-CN'; u.rate = 1.0
-      u.onend = () => { if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1 } }
-      window.speechSynthesis.speak(u)
+      // edge-tts 失败时降级到浏览器 TTS
+      // 按导游 ID 匹配，并使用每个导游独立的语速和音调
+      const p = personaRef.current
+      let voice = findPersonaVoice(p.id)
+      if (!voice) voice = findBestVoice(p.voice)
+      if (voice) {
+        const u = new SpeechSynthesisUtterance(text)
+        u.voice = voice; u.lang = 'zh-CN'
+        u.rate = p.browser_rate
+        u.pitch = p.browser_pitch
+        const start = Date.now()
+        const estimatedDuration = text.length * 280
+        const mouthInterval = setInterval(() => {
+          if (playIdRef.current !== currentId) { clearInterval(mouthInterval); return }
+          const elapsed = Date.now() - start
+          if (elapsed > estimatedDuration) { clearInterval(mouthInterval); setMouthOpen(0); return }
+          setMouthOpen(0.3 + 0.7 * Math.abs(Math.sin(elapsed / 120)))
+        }, 50)
+        u.onend = () => {
+          clearInterval(mouthInterval)
+          if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1; setEmotion('happy'); setMouthOpen(0) }
+        }
+        u.onerror = () => { clearInterval(mouthInterval) }
+        window.speechSynthesis.speak(u)
+      } else {
+        const fallback = findFallbackVoice()
+        const u = new SpeechSynthesisUtterance(text)
+        u.voice = fallback; u.lang = 'zh-CN'
+        u.rate = p.browser_rate
+        u.pitch = p.browser_pitch
+        u.onend = () => { if (playIdRef.current === currentId) { setSpeakingIdx(-1); speakingIdxRef.current = -1 } }
+        window.speechSynthesis.speak(u)
+      }
     }
   }
 
@@ -358,9 +371,13 @@ export default function ChatPage() {
       padding: '10px 14px 12px',
       display: 'flex', alignItems: 'center', gap: 10,
     }}>
-      {/* 状态指示灯 — 显示当前导游 emoji */}
-      <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: persona.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
-        {persona.emoji}
+      {/* 状态指示灯 — 显示当前导游头像 */}
+      <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', border: `2px solid ${persona.color}60` }}>
+        {persona.image && (
+          <img src={persona.image} alt={persona.name}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+          />
+        )}
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ color: '#fff', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -431,11 +448,21 @@ export default function ChatPage() {
           <div key={i} className={m.role === 'user' ? 'msg-user-in' : 'msg-ai-in'} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
             {m.role !== 'user' && (
               <div style={{
-                width: 32, height: 32, borderRadius: '50%',
+                width: 32, height: 32, borderRadius: '50%', overflow: 'hidden',
                 background: m.role === 'error' ? '#e88b7e' : persona.color,
+                marginRight: 6, flexShrink: 0, marginTop: 2,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 16, marginRight: 6, flexShrink: 0, marginTop: 2, color: '#fff',
-              }}>{m.role === 'error' ? '!' : persona.emoji}</div>
+              }}>
+                {m.role === 'error' ? (
+                  <span style={{ fontSize: 16, color: '#fff' }}>!</span>
+                ) : persona.image ? (
+                  <img src={persona.image} alt={persona.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 16 }}>{persona.emoji}</span>
+                )}
+              </div>
             )}
             <div style={{ maxWidth: '82%' }}>
               <div style={{

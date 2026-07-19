@@ -23,8 +23,8 @@ async def transcribe(audio_bytes: bytes, language: str = "zh") -> tuple[str, flo
     """将音频转写为文本，返回(文本, 置信度)"""
     model = get_model()
 
-    # 保存临时文件
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+    # 保存临时文件，用原始格式让 ffmpeg 自行检测
+    with tempfile.NamedTemporaryFile(suffix=".audio", delete=False) as f:
         f.write(audio_bytes)
         tmp_path = f.name
 

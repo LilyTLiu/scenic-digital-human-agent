@@ -8,11 +8,11 @@ const api = axios.create({
 
 // 对话 - 支持普通模式与流式模式
 export const chatApi = {
-  send: (data: { message: string; scenic_spot?: string; session_id?: string }) =>
+  send: (data: { message: string; scenic_spot?: string; session_id?: string; persona_name?: string; persona_role?: string; persona_style?: string }) =>
     api.post('/chat/send', data).then((r) => r.data),
 
   sendStream: (
-    data: { message: string; scenic_spot?: string; session_id?: string },
+    data: { message: string; scenic_spot?: string; session_id?: string; persona_name?: string; persona_role?: string; persona_style?: string },
     onToken: (token: string) => void,
     onDone: () => void,
     onError: (err: Error) => void,
@@ -66,8 +66,11 @@ export const voiceApi = {
       timeout: 30000,
     }).then((r) => r.data)
   },
-  tts: (text: string, voice?: string) =>
-    api.post('/voice/tts', { text, voice }, { responseType: 'blob' }).then((r) => r.data),
+  tts: (text: string, voice?: string, style?: string, rate?: string, pitch?: string) =>
+    api.post('/voice/tts', { text, voice, style, rate, pitch }, {
+      responseType: 'blob',
+      timeout: 5000, // 5s 超时，快速降级到浏览器 TTS
+    }).then((r) => r.data),
 }
 
 // 管理后台

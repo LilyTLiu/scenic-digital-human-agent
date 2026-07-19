@@ -99,3 +99,25 @@ pytorch3d_build/
 
 # ZIP artifacts
 *.zip
+
+# Generated test reports
+backend/bug_report.html
+backend/full_test_report.html
+
+# Large generated map images
+**/导览图*.png
+logo_*.png
+**/logo_*.svg
+
+# Temp scripts
+update_doc.py
+convert_to_docx.py
+generate_logo.py
+insert_logo.py
+
+# Test scripts (not essential)
+run_tests.bat
+run_tests.sh
+
+# ChromaDB sqlite
+backend/chroma_db/chroma.sqlite3

@@ -5,7 +5,7 @@
 import json
 import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
@@ -411,6 +411,15 @@ async def list_digital_humans():
 @router.put("/digital-humans/{human_id}")
 async def update_digital_human(human_id: str, config: dict):
     return {"id": human_id, **config}
+
+
+class SwitchPersonaRequest(BaseModel):
+    persona: str = "miaoyin"
+
+
+@router.post("/switch-persona")
+async def switch_persona(req: SwitchPersonaRequest):
+    return {"success": True, "persona": req.persona}
 
 
 # ══════════════════════════════════════════════════════════════
