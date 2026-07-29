@@ -194,3 +194,291 @@ html, body, #root {
 
 /* 底部导航动效 */
 .tab-item.active { animation: tabBounce 0.3s ease-out; }
+
+/* === 桌面端布局：由游客端 Layout 显式启用，手机端默认规则保持独立 === */
+@media (min-width: 900px) {
+  body.tourist-desktop-layout,
+  body.tourist-desktop-layout #root {
+    overflow: hidden;
+    background:
+      linear-gradient(135deg, rgba(45, 138, 123, 0.08), transparent 38%),
+      linear-gradient(315deg, rgba(200, 150, 62, 0.10), transparent 34%),
+      var(--cream);
+  }
+
+  .app-shell--desktop {
+    width: 100%;
+    max-width: none;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr);
+    background: transparent;
+    overflow: hidden;
+  }
+
+  .app-shell--desktop .tourist-content {
+    grid-column: 2;
+    min-width: 0;
+    min-height: 100vh;
+    padding-bottom: 0 !important;
+    overflow: auto;
+  }
+
+  .app-shell--desktop .tab-bar {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: none;
+    width: 92px;
+    max-width: none;
+    height: 100vh;
+    padding: 20px 10px;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 12px;
+    border-top: none;
+    border-right: 1px solid rgba(232, 227, 219, 0.86);
+    background: rgba(255, 252, 247, 0.92);
+    box-shadow: 8px 0 30px rgba(61, 54, 48, 0.06);
+  }
+
+  .app-shell--desktop .tab-bar::before {
+    content: "灵山";
+    width: 52px;
+    height: 52px;
+    margin: 0 0 12px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: #1f342f;
+    color: #f8df9a;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .app-shell--desktop .tab-item {
+    width: 68px;
+    min-height: 64px;
+    padding: 8px 6px;
+    border-radius: 8px;
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .app-shell--desktop .tab-item:hover {
+    color: var(--gold-dark);
+    background: rgba(200, 150, 62, 0.10);
+  }
+
+  .app-shell--desktop .tab-item.active {
+    background: rgba(200, 150, 62, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(200, 150, 62, 0.16);
+  }
+
+  .app-shell--desktop .tab-item svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .app-shell--desktop .card {
+    border-radius: 8px;
+    box-shadow: 0 10px 28px rgba(61, 54, 48, 0.08);
+  }
+
+  .app-shell--desktop .tourist-home {
+    width: min(1280px, calc(100vw - 132px));
+    min-height: 100vh;
+    margin: 0 auto;
+    padding: 32px !important;
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
+    grid-template-rows: auto auto 1fr;
+    gap: 22px;
+    align-content: start;
+  }
+
+  .app-shell--desktop .tourist-home-hero {
+    min-height: calc(100vh - 64px);
+    grid-row: 1 / 4;
+    border-radius: 8px;
+    padding: 56px 48px !important;
+    display: flex;
+    align-items: flex-end;
+    box-shadow: 0 18px 50px rgba(31, 52, 47, 0.20);
+  }
+
+  .app-shell--desktop .tourist-home-hero h1 {
+    font-size: 56px !important;
+    line-height: 1.05;
+  }
+
+  .app-shell--desktop .tourist-home-guide,
+  .app-shell--desktop .tourist-home-questions,
+  .app-shell--desktop .tourist-home-actions {
+    padding: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  .app-shell--desktop .tourist-home-questions {
+    padding: 24px !important;
+    border-radius: 8px;
+    background: rgba(255, 252, 247, 0.82);
+    box-shadow: 0 10px 28px rgba(61, 54, 48, 0.06);
+  }
+
+  .app-shell--desktop .tourist-home-actions {
+    align-self: start;
+    padding: 24px !important;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(61, 54, 48, 0.06);
+  }
+
+  .app-shell--desktop .tourist-home-actions .btn-secondary,
+  .app-shell--desktop .tourist-home-actions .btn-primary {
+    border-radius: 8px;
+  }
+
+  .app-shell--desktop .tourist-chat-shell {
+    height: 100vh !important;
+  }
+
+  .app-shell--desktop .tourist-chat-dialog {
+    background: #f2eee7 !important;
+  }
+
+  .app-shell--desktop .tourist-chat-dialog > header,
+  .app-shell--desktop .tourist-chat-input > div,
+  .app-shell--desktop .tourist-chat-messages {
+    width: min(960px, calc(100vw - 156px));
+    margin: 0 auto;
+  }
+
+  .app-shell--desktop .tourist-chat-dialog > header {
+    padding: 16px 0 !important;
+    background: transparent !important;
+    color: var(--charcoal) !important;
+  }
+
+  .app-shell--desktop .tourist-chat-dialog > header button {
+    border-radius: 8px !important;
+  }
+
+  .app-shell--desktop .tourist-chat-messages {
+    padding: 18px 0 !important;
+  }
+
+  .app-shell--desktop .tourist-chat-input {
+    padding: 14px 0 !important;
+    background: rgba(255, 255, 255, 0.90) !important;
+  }
+
+  .app-shell--desktop .tourist-chat-input button,
+  .app-shell--desktop .tourist-chat-input textarea {
+    border-radius: 8px !important;
+  }
+
+  .app-shell--desktop .tourist-chat-avatar header {
+    padding: 18px 28px !important;
+  }
+
+  .app-shell--desktop .tourist-chat-avatar header button {
+    border-radius: 8px !important;
+    min-width: 72px;
+  }
+
+  .app-shell--desktop .tourist-chat-avatar-text {
+    left: 50% !important;
+    right: auto !important;
+    bottom: 94px !important;
+    width: min(760px, calc(100vw - 180px));
+    transform: translateX(-50%);
+    max-height: 28vh !important;
+    font-size: 15px !important;
+  }
+
+  .app-shell--desktop .tourist-tour {
+    height: 100vh !important;
+  }
+
+  .app-shell--desktop .tourist-tour.has-detail {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 410px;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .app-shell--desktop .tourist-tour.no-detail {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .app-shell--desktop .tourist-tour-header {
+    grid-column: 1 / -1;
+    min-height: 68px;
+    padding: 16px 24px !important;
+  }
+
+  .app-shell--desktop .tourist-tour-map {
+    grid-column: 1;
+    grid-row: 2;
+    min-height: 0;
+  }
+
+  .app-shell--desktop .tourist-tour-detail {
+    grid-column: 2;
+    grid-row: 2;
+    max-height: none !important;
+    height: 100%;
+    border-top: none !important;
+    border-left: 1px solid #f0ebe0;
+    overflow: auto !important;
+    box-shadow: -12px 0 34px rgba(61, 54, 48, 0.07);
+  }
+
+  .app-shell--desktop .tourist-tour-hint {
+    grid-column: 1 / -1;
+    padding: 14px !important;
+  }
+
+  .app-shell--desktop .tourist-recommend {
+    width: min(1180px, calc(100vw - 148px));
+    margin: 0 auto;
+    padding: 32px !important;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    align-items: start;
+  }
+
+  .app-shell--desktop .tourist-recommend-header {
+    grid-column: 1 / -1;
+    margin-bottom: 4px !important;
+  }
+
+  .app-shell--desktop .tourist-recommend-header h2 {
+    font-size: 30px !important;
+  }
+
+  .app-shell--desktop .tourist-route-card {
+    margin-bottom: 0 !important;
+    min-height: 100%;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-shell--desktop .tourist-home {
+    grid-template-columns: 1fr;
+    width: min(860px, calc(100vw - 132px));
+  }
+
+  .app-shell--desktop .tourist-home-hero {
+    grid-row: auto;
+    min-height: 420px;
+  }
+
+  .app-shell--desktop .tourist-recommend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

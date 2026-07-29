@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PERSONAS, type PersonaId } from '../../config/personas'
 import { useUser } from '../../contexts/UserContext'
 import LoginModal from '../../components/LoginModal'
 import ProfileDrawer from '../../components/ProfileDrawer'
@@ -58,34 +57,19 @@ export default function HomePage() {
   const { user, login } = useUser()
   const [loginOpen, setLoginOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [activeId, setActiveId] = useState<PersonaId>('miaoyin')
-
-  // 从后端获取管理员设置的活跃数字人形象
-  useEffect(() => {
-    fetch('/api/admin/digital-humans')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.active && data.active in PERSONAS) {
-          setActiveId(data.active as PersonaId)
-        }
-      })
-      .catch(() => { /* 后端不可用时保持默认miaoyin */ })
-  }, [])
-
-  const activePersona = PERSONAS[activeId]
 
   const quickQuestions = user?.interests?.length
     ? getPersonalizedQuestions(user.interests)
     : defaultQuestions
 
   const handleQuickAsk = (q: string) => {
-    navigate(`/tourist/chat?q=${encodeURIComponent(q)}&persona=${activeId}`)
+    navigate(`/tourist/chat?q=${encodeURIComponent(q)}`)
   }
 
   return (
-    <div className="page-enter" style={{ padding: '0 0 32px', position: 'relative' }}>
+    <div className="page-enter tourist-home" style={{ padding: '0 0 32px', position: 'relative' }}>
       {/* === Hero 景区封面 === */}
-      <div style={{
+      <div className="tourist-home-hero" style={{
         background: scenicSpots[0].cover,
         padding: '40px 24px 48px',
         position: 'relative',
@@ -192,36 +176,33 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* === 今日AI导游 === */}
-      <div style={{ padding: '0 20px', marginTop: -20, position: 'relative', zIndex: 2 }}>
+      {/* === AI数字导游 === */}
+      <div className="tourist-home-guide" style={{ padding: '0 20px', marginTop: -20, position: 'relative', zIndex: 2 }}>
         <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 2 }}>今日AI导游</h3>
+          <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 2 }}>AI数字导游</h3>
           <p style={{ fontSize: 13, color: '#9c948c', marginBottom: 16 }}>
-            旅途陪伴，为您提供贴心服务
+            数字人形象 + 灵山知识库问答 + 对话框播报
           </p>
 
-          {/* 当前导游预览 */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 14,
             padding: '14px 16px', borderRadius: 14,
-            background: `${activePersona.color}0D`,
-            border: `1.5px solid ${activePersona.color}25`,
+            background: '#c8963e0D',
+            border: '1.5px solid #c8963e25',
           }}>
-            <img
-              src={activePersona.image}
-              alt={activePersona.name}
-              style={{
-                width: 56, height: 56, borderRadius: '50%',
-                objectFit: 'cover', objectPosition: 'center top',
-                boxShadow: `0 3px 12px ${activePersona.color}30`,
-                flexShrink: 0,
-              }}
-            />
+            <div style={{
+              width: 56, height: 56, borderRadius: '50%',
+              background: 'linear-gradient(135deg, #1a1a2e, #c8963e)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#fff', fontWeight: 700, fontSize: 18,
+              boxShadow: '0 3px 12px rgba(200,150,62,0.28)',
+              flexShrink: 0,
+            }}>AI</div>
             <div>
-              <span style={{ fontSize: 18, fontWeight: 700, color: activePersona.color }}>{activePersona.name}</span>
-              <div style={{ fontSize: 12, color: '#9c948c', marginTop: 2 }}>{activePersona.style} · {activePersona.role}</div>
-              <div style={{ fontSize: 11, color: activePersona.color, marginTop: 2, fontWeight: 500 }}>
-                擅长{activePersona.style}的讲解风格
+              <span style={{ fontSize: 18, fontWeight: 700, color: '#c8963e' }}>灵山 AI 导游</span>
+              <div style={{ fontSize: 12, color: '#9c948c', marginTop: 2 }}>文字、语音与数字人统一问答</div>
+              <div style={{ fontSize: 11, color: '#c8963e', marginTop: 2, fontWeight: 500 }}>
+                回答记录会同步展示在对话框中
               </div>
             </div>
           </div>
@@ -229,7 +210,7 @@ export default function HomePage() {
       </div>
 
       {/* === 快捷提问 === */}
-      <div style={{ padding: '0 20px', marginTop: 20 }}>
+      <div className="tourist-home-questions" style={{ padding: '0 20px', marginTop: 20 }}>
         <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
           {user?.interests?.length ? '为你推荐' : '大家都在问'}
         </h3>
@@ -263,11 +244,11 @@ export default function HomePage() {
       </div>
 
       {/* === 开始按钮 === */}
-      <div style={{ padding: '0 20px', marginTop: 28, textAlign: 'center' }}>
+      <div className="tourist-home-actions" style={{ padding: '0 20px', marginTop: 28, textAlign: 'center' }}>
         <button
           className="btn-primary"
           style={{ width: '100%', height: 52, fontSize: 17 }}
-          onClick={() => navigate(`/tourist/chat?persona=${activeId}`)}
+          onClick={() => navigate('/tourist/chat')}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>

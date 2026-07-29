@@ -63,7 +63,7 @@ export const voiceApi = {
     formData.append('file', audioBlob, 'recording.wav')
     return api.post('/voice/asr', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 30000,
+      timeout: 120000,
     }).then((r) => r.data)
   },
   tts: (text: string, voice?: string, style?: string, rate?: string, pitch?: string) =>

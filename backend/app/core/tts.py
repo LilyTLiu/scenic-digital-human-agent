@@ -1,66 +1,107 @@
-"""
-TTS - Text to Speech
-基于 edge-tts 实现文本转语音，免费且自然度高
-支持 SSML 风格（style）、语速（rate）、音调（pitch）控制
-连接云服务超时设为 3 秒，失败后前端自动降级到浏览器 TTS
-"""
-import tempfile
+"""Configurable text-to-speech backends."""
+
+import base64
 import os
-import asyncio
-from html import escape
+from dataclasses import dataclass
 
-# edge-tts 连接超时（秒）：云服务不可用时快速失败，避免用户等待
-EDGE_TTS_TIMEOUT = 3
+import httpx
 
 
-def _build_ssml(text: str, voice: str, style: str = None,
-                 rate: str = "+0%", pitch: str = "+0Hz") -> str:
-    """构建 SSML 增加语音表现力"""
-    safe_text = escape(text)
-    if style:
-        return f"""<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"
-       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-CN">
-  <voice name="{voice}">
-    <mstts:express-as style="{style}">
-      <prosody rate="{rate}" pitch="{pitch}">
-        {safe_text}
-      </prosody>
-    </mstts:express-as>
-  </voice>
-</speak>"""
-    else:
-        return f"""<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis"
-       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-CN">
-  <voice name="{voice}">
-    <prosody rate="{rate}" pitch="{pitch}">
-      {safe_text}
-    </prosody>
-  </voice>
-</speak>"""
+VOICE_MAP = {
+    # 前端 edge-tts 声线 → Sambert 音色
+    "zh-CN-XiaoxiaoNeural": "zhitian",   # 活泼女 → 知甜
+    "zh-CN-XiaoyiNeural":    "zhichu",    # 温柔女 → 知初
+    "zh-CN-YunxiNeural":     "zhimo",     # 沉稳男 → 知陌
+    "zh-CN-YunjianNeural":   "zhimo",     # 成熟男 → 知陌
+}
 
 
-async def synthesize(text: str, voice: str = "zh-CN-XiaoxiaoNeural",
-                     style: str = None, rate: str = "+0%",
-                     pitch: str = "+0Hz") -> bytes:
-    """
-    将文本合成为语音，返回MP3音频bytes
-    - style: 表达风格，如 friendly/calm/gentle/cheerful 等
-    - rate: 语速，如 "+10%" / "-5%"
-    - pitch: 音调，如 "+5Hz" / "-8Hz"
-    超时后抛出 asyncio.TimeoutError，由前端降级到浏览器 TTS
-    """
+@dataclass
+class SynthesizedAudio:
+    content: bytes
+    media_type: str = "audio/mpeg"
+    filename: str = "speech.mp3"
+
+
+async def _synthesize_edge(text: str, voice: str) -> SynthesizedAudio:
     import edge_tts
-    ssml = _build_ssml(text, voice, style, rate, pitch)
-    communicate = edge_tts.Communicate(ssml, voice)
-    with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-        tmp_path = f.name
 
-    try:
-        await asyncio.wait_for(communicate.save(tmp_path), timeout=EDGE_TTS_TIMEOUT)
-        with open(tmp_path, "rb") as f:
-            return f.read()
-    except asyncio.TimeoutError:
-        raise RuntimeError("TTS 云服务连接超时，已降级到浏览器语音")
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+    communicate = edge_tts.Communicate(text, voice)
+    audio = bytearray()
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            audio.extend(chunk["data"])
+    if not audio:
+        raise RuntimeError("edge-tts 未返回音频数据")
+    return SynthesizedAudio(bytes(audio), "audio/mpeg", "speech.mp3")
+
+
+async def _synthesize_dashscope(text: str, voice: str) -> SynthesizedAudio:
+    """DashScope Sambert TTS. This is cloud-hosted, not an open-source model."""
+
+    api_key = os.environ.get("DASHSCOPE_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("DASHSCOPE_API_KEY 未设置！")
+
+    from dashscope.audio.tts import SpeechSynthesizer
+
+    dashscope_voice = VOICE_MAP.get(voice, "zhitian")
+
+    result = SpeechSynthesizer.call(
+        model="sambert-zhichu-v1",
+        text=text,
+        voice=dashscope_voice,
+        format="mp3",
+        api_key=api_key,
+    )
+
+    if result.get_response().status_code != 200:
+        raise RuntimeError(
+            f"DashScope TTS error {result.get_response().status_code}: {result.get_response().message}"
+        )
+
+    audio = result.get_audio_data()
+    if not audio:
+        raise RuntimeError("DashScope TTS 未返回音频数据")
+    return SynthesizedAudio(audio, "audio/mpeg", "speech.mp3")
+
+
+async def _synthesize_local_http(text: str, voice: str) -> SynthesizedAudio:
+    """Call a local open-source TTS service such as CosyVoice or MeloTTS."""
+    url = os.getenv("TTS_LOCAL_HTTP_URL", "http://127.0.0.1:9880/tts").strip()
+    payload = {
+        "text": text,
+        "voice": voice,
+        "speaker": os.getenv("TTS_LOCAL_SPEAKER", ""),
+        "format": os.getenv("TTS_LOCAL_FORMAT", "wav"),
+    }
+    async with httpx.AsyncClient(timeout=float(os.getenv("TTS_TIMEOUT", "120"))) as client:
+        resp = await client.post(url, json=payload)
+    resp.raise_for_status()
+
+    content_type = resp.headers.get("content-type", "").split(";")[0].strip()
+    if content_type.startswith("audio/"):
+        extension = "wav" if "wav" in content_type else "mp3"
+        return SynthesizedAudio(resp.content, content_type, f"speech.{extension}")
+
+    data = resp.json()
+    audio_b64 = data.get("audio") or data.get("audio_base64")
+    if not audio_b64:
+        raise RuntimeError("本地 TTS 服务未返回 audio/audio_base64 字段或音频流")
+    media_type = data.get("media_type") or data.get("mime_type") or "audio/wav"
+    extension = "wav" if "wav" in media_type else "mp3"
+    return SynthesizedAudio(base64.b64decode(audio_b64), media_type, f"speech.{extension}")
+
+
+async def synthesize(text: str, voice: str = "zh-CN-XiaoxiaoNeural") -> SynthesizedAudio:
+    """文本合成为音频。TTS_PROVIDER=edge|dashscope|local_http"""
+    provider = os.getenv("TTS_PROVIDER", "edge").strip().lower()
+
+    if provider == "edge":
+        return await _synthesize_edge(text, voice)
+    if provider == "dashscope":
+        return await _synthesize_dashscope(text, voice)
+    if provider in {"local", "local_http", "cosyvoice", "melotts"}:
+        return await _synthesize_local_http(text, voice)
+
+    raise RuntimeError(f"未知 TTS_PROVIDER: {provider}")

@@ -19,6 +19,7 @@ except ImportError:
 # API 配置 — 优先读环境变量，支持 docker-compose 或 .env 覆盖
 DEEPSEEK_API_BASE = os.getenv("DEEPSEEK_API_BASE", "https://api.deepseek.com")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+DEEPSEEK_MAX_TOKENS = int(os.getenv("DEEPSEEK_MAX_TOKENS", "512"))
 
 
 def get_api_key():
@@ -26,8 +27,8 @@ def get_api_key():
     if not key:
         raise RuntimeError(
             "DEEPSEEK_API_KEY 未设置！请先设置环境变量：\n"
-            "  $env:DEEPSEEK_API_KEY='sk-...'   (PowerShell)\n"
-            "  export DEEPSEEK_API_KEY='sk-...'  (Bash)"
+            "  $env:DEEPSEEK_API_KEY='你的DeepSeek密钥'   (PowerShell)\n"
+            "  export DEEPSEEK_API_KEY='你的DeepSeek密钥'  (Bash)"
         )
     return key
 
@@ -45,7 +46,7 @@ async def chat(prompt: str, temperature: float = 0.7) -> str:
             {"role": "user", "content": prompt},
         ],
         "temperature": temperature,
-        "max_tokens": 2048,
+        "max_tokens": DEEPSEEK_MAX_TOKENS,
     }
 
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -72,7 +73,7 @@ async def chat_stream(prompt: str):
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.7,
-        "max_tokens": 2048,
+        "max_tokens": DEEPSEEK_MAX_TOKENS,
         "stream": True,
     }
 

@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from docx import Document
-from app.core.rag import create_knowledge_base, add_documents
+from app.core.rag import add_documents, reset_collection
 
 
 def load_docx_text(filepath: str) -> str:
@@ -56,6 +56,7 @@ def build_lingshan_kb():
     # 3. 导入知识库
     collection_name = "lingshan"
     print(f"Creating collection: {collection_name}")
+    reset_collection(collection_name)
 
     # 导入指南文档
     guide_chunks = add_documents(

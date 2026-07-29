@@ -121,6 +121,13 @@ def init_db():
             conn.commit()
     except Exception:
         pass  # 列已存在则忽略
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE knowledge_docs ADD COLUMN chroma_ids TEXT DEFAULT '[]'"))
+            conn.commit()
+    except Exception:
+        pass  # 列已存在则忽略
 
 
 def get_db():

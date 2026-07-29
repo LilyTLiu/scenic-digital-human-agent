@@ -1,298 +1,437 @@
-# AI数字人智能导游系统
+# 灵山景区导览数字人系统
 
-"中国软件杯" 2026年赛题 A5 — 基于多模态大模型的智慧景区导览系统。
+面向无锡灵山胜境的景区导览数字人系统。当前主链路为：游客端统一数字人/对话框界面，魔珐星云数字人 SDK 驱动数字人形象，DeepSeek + RAG 生成讲解答案，faster-whisper 完成中文语音转文字，Microsoft Edge TTS 的 `zh-CN-XiaoxiaoNeural` 完成对话框语音播报。
 
-以无锡灵山胜境为示范景区，集成 RAG 知识库、DeepSeek 大模型、3D 数字人实时渲染、语音交互等技术，为游客提供智能问答、景区导览、路线推荐、数字人讲解等服务。
+本仓库不提交 DeepSeek API Key、魔珐星云 App ID/App Secret、真实本地 `.env` 文件。部署者需要按本文档自行配置。
+
+## 当前功能
+
+- 游客端首页、数字人问答、景区导览、路线推荐。
+- 数字人全屏界面与对话框全屏界面统一：问题和答案记录同步展示。
+- 支持文字输入、浏览器录音、后端中文 ASR、流式问答、对话框 Xiaoxiao 语音播报。
+- 数字人形象通过魔珐星云前端 SDK 接入，连接、结束、播报停止由前端控制。
+- RAG 知识库基于灵山公开资料包构建，回答会按提示词约束为简洁中文导游讲解。
+- 游客端布局分离：手机端保留移动布局和底部导航，电脑端启用侧边导航和宽屏布局。
+- 管理后台保留知识库、景区、数字人配置、反馈数据等功能。
 
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 后端框架 | Python FastAPI + Uvicorn |
-| 数据库 | SQLite (SQLAlchemy ORM) |
-| 向量检索 | ChromaDB + sentence-transformers (text2vec-base-chinese) |
-| 大模型 | DeepSeek API (OpenAI 兼容接口) |
-| 语音合成 | Edge-TTS + Web Speech API |
-| 语音识别 | faster-whisper (后端) + SenseVoice (OAC 端) |
-| 3D 数字人 | OpenAvatarChat (LAM 大型头像模型) |
-| 前端框架 | React 18 + TypeScript + Vite 5 |
-| UI 组件 | Ant Design 5 |
+| 模块 | 实现 |
+| --- | --- |
+| 前端 | React 18 + TypeScript + Vite |
+| 游客端布局 | 同一功能组件 + `mobile/desktop` 布局模式 |
+| 数字人 | 魔珐星云数字人 Web SDK |
+| 对话 | DeepSeek OpenAI-compatible API |
+| 知识库 | ChromaDB + `shibing624/text2vec-base-chinese` |
+| TTS | `edge-tts`，默认 `zh-CN-XiaoxiaoNeural` |
+| ASR | `faster-whisper`，默认中文 `base` 模型 |
+| 后端 | FastAPI + Uvicorn + SQLite |
 
-## 功能概要
+## 目录说明
 
-### 游客端
-- **智能问答** — RAG 检索增强 + DeepSeek 生成，覆盖灵山 10+ 景点知识
-- **语音对话** — 语音输入 (ASR) + 语音播报 (TTS)，支持 4 种导游声线
-- **景区导览** — 手绘风格地图，10 个景点标记，点击查看详细介绍 + 语音讲解
-- **路线推荐** — 3 条主题路线（历史文化/自然风光/亲子），含时间规划和行程
-- **AI 数字人** — 3D 数字人实时渲染，口型同步，表情驱动
-- **用户系统** — 手机号登录注册，个性化偏好设置
+```text
+backend/
+  app/api/chat.py              # 问答与流式问答接口
+  app/api/voice.py             # ASR/TTS 接口
+  app/core/asr.py              # faster-whisper 中文识别
+  app/core/tts.py              # edge/xiaoxiao TTS 链路
+  app/core/llm.py              # DeepSeek 调用
+  app/core/rag.py              # 知识库检索与导游提示词
+  app/core/query_normalization.py
+                               # 景区专有名词纠错
+  scripts/build_knowledge_base.py
+                               # 从示范资料包构建 Chroma 知识库
 
-### 管理后台 (`/admin`)
-- **数据大屏** — 今日/本周服务人次、热门问答、7 天趋势
-- **知识库管理** — 增删改查知识条目，一键导入示范资料包 .docx 文件
-- **数字人形象管理** — 4 角色可视化切换，实时生效
-- **游客管理** — 注册游客列表，对话统计
-- **反馈报告** — 满意度统计，每日趋势
+frontend/
+  src/hooks/useXmovAvatar.ts   # 魔珐星云 SDK 加载、连接、播报、停止
+  src/hooks/useMediaQuery.ts   # 游客端布局模式判断
+  src/pages/tourist/Layout.tsx # mobile/desktop 外壳与导航
+  src/pages/tourist/ChatPage.tsx
+                               # 数字人/对话框统一问答界面
+  src/pages/tourist/HomePage.tsx
+  src/pages/tourist/TourPage.tsx
+  src/pages/tourist/RecommendPage.tsx
+  src/utils/asr.ts             # 前端录音格式与景区词纠错
+```
 
-### 4 位 AI 导游
+## 环境要求
 
-| 角色 | 声线 | 风格 | 适用场景 |
-|------|------|------|----------|
-| 小灵 | zh-CN-XiaoxiaoNeural | 热情专业 | 通用导览 |
-| 小山 | zh-CN-YunxiNeural | 沉稳博学 | 深度文化讲解 |
-| 妙音 | zh-CN-XiaoyiNeural | 优雅灵动 | 艺术鉴赏 |
-| 小禅 | zh-CN-YunjianNeural | 禅意智慧 | 禅修体验 |
+- Python 3.10 或以上，建议 3.11/3.12。
+- Node.js 18 或以上。
+- npm 9 或以上。
+- Windows、macOS、Linux 均可。本项目本地开发默认使用 Windows PowerShell 示例命令。
+- 首次下载 faster-whisper 和 embedding 模型需要联网。
 
-## 快速开始
-
-### 环境要求
-
-| 工具 | 最低版本 |
-|------|----------|
-| Python | >= 3.10 |
-| Node.js | >= 18 |
-| npm | >= 9 |
-
-### 1. 克隆仓库
+## 1. 克隆仓库
 
 ```bash
 git clone https://github.com/LilyTLiu/scenic-digital-human-agent.git
 cd scenic-digital-human-agent
 ```
 
-### 2. 后端
+## 2. 后端配置与启动
+
+进入后端目录：
 
 ```bash
 cd backend
-
-# 创建虚拟环境（推荐）
-python -m venv venv
-# Windows: venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
-
-# 安装依赖
-pip install -r requirements.txt
-
-# 配置 API Key
-cp .env.example .env
-# 编辑 .env，填写 DEEPSEEK_API_KEY=你的密钥
-
-# 启动后端
-python main.py
-# → http://localhost:8000
-# → API 文档: http://localhost:8000/docs
 ```
 
-### 3. 前端
+创建虚拟环境并安装依赖：
+
+```bash
+python -m venv venv
+
+# Windows PowerShell
+.\venv\Scripts\Activate.ps1
+
+# macOS/Linux
+# source venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+复制环境变量模板：
+
+```bash
+copy .env.example .env
+# macOS/Linux: cp .env.example .env
+```
+
+编辑 `backend/.env`，至少配置：
+
+```env
+DEEPSEEK_API_KEY=你的_DeepSeek_API_Key
+DEEPSEEK_API_BASE=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_MAX_TOKENS=512
+
+GUIDE_REPLY_MAX_CHARS=180
+GUIDE_REPLY_BRIEF_CHARS=80
+
+WHISPER_MODEL=base
+WHISPER_DEVICE=cpu
+WHISPER_COMPUTE_TYPE=int8
+ASR_LANGUAGE=zh
+ASR_HF_HUB_OFFLINE=0
+
+TTS_PROVIDER=edge
+TTS_VOICE=zh-CN-XiaoxiaoNeural
+TTS_TIMEOUT=120
+```
+
+说明：
+
+- `DEEPSEEK_API_KEY` 必填，不要提交到 Git。
+- `WHISPER_MODEL=base` 是轻量默认值。准确率优先可改为 `small`、`medium` 或 `large-v3`，首次运行会下载模型。
+- `ASR_LANGUAGE=zh` 会固定为中文识别。
+- `TTS_PROVIDER=edge` 使用免费 Edge TTS，当前游客端对话框默认请求 `zh-CN-XiaoxiaoNeural`。
+
+启动后端：
+
+```bash
+python main.py
+```
+
+后端默认地址：
+
+- API: `http://localhost:8000`
+- API 文档: `http://localhost:8000/docs`
+
+如果出现 `WinError 10048` 或端口占用，说明已有后端占用 8000 端口。先结束旧进程，或修改后端端口后同步修改前端代理。
+
+## 3. 构建知识库
+
+知识库构建脚本会读取仓库中的 `示范景区公开资料包` 下两个 Word 文档，并写入 ChromaDB。
+
+```bash
+cd backend
+python scripts/build_knowledge_base.py
+```
+
+首次运行会下载 embedding 模型 `shibing624/text2vec-base-chinese`。如果模型已经下载到本机缓存，后续可在 `.env` 中设置：
+
+```env
+HF_HUB_OFFLINE=1
+```
+
+当前代码还包含景区专有名词纠错，例如“灵山警区”会纠正为“灵山景区”，“佛祖坛/青筒佛祖印”等误识别会纠正为“佛足坛/青铜佛足印”，再进入 RAG 检索。
+
+## 4. 前端配置与启动
+
+进入前端目录：
 
 ```bash
 cd frontend
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
-npm run dev
-# → https://localhost:5173  (自签名证书，用于麦克风权限)
 ```
 
-### 4. 访问
-
-浏览器打开 `https://localhost:5173`：
-- 游客端：底部导航切换"导览""问答""AI导游""路线""我的"
-- 管理后台：`https://localhost:5173/admin`
-
-首次使用建议先进入管理后台，点击"导入示例资料"将灵山知识库加载到向量数据库。
-
-### 5. 3D 数字人（可选）
-
-如需启用 3D 数字人实时渲染，需要额外部署 OpenAvatarChat：
+复制环境变量模板：
 
 ```bash
-# 1. 安装 OpenAvatarChat (需 conda 环境)
-git clone https://github.com/OpenAvatarChat/OpenAvatarChat.git
-cd OpenAvatarChat
-conda env create -f environment.yml
-conda activate oac
-
-# 2. 将 代码包/OAC-config/lingshan_http.yaml 复制到 OpenAvatarChat/config/
-
-# 3. 启动 OAC
-python src/demo.py --config config/lingshan_http.yaml
-
-# 4. 前端配置代理（vite.config.ts 已预配置 /oac → localhost:8787）
+copy .env.example .env.local
+# macOS/Linux: cp .env.example .env.local
 ```
 
-数字人页面位于 `/tourist/digital-human`，角色随管理后台切换实时生效。
-
-## 项目结构
-
-```
-├── backend/
-│   ├── main.py                    # 后端入口
-│   ├── requirements.txt
-│   ├── .env.example               # API Key 配置模板
-│   ├── app/
-│   │   ├── app.py                 # FastAPI 应用工厂
-│   │   ├── config.py              # 配置管理
-│   │   ├── api/
-│   │   │   ├── chat.py            # 对话接口（含 OAC LLM 端点）
-│   │   │   ├── voice.py           # TTS / ASR 接口
-│   │   │   ├── admin.py           # 管理后台接口
-│   │   │   ├── upload.py          # 文件上传
-│   │   │   └── user.py            # 用户系统
-│   │   ├── core/
-│   │   │   ├── llm.py             # DeepSeek API 封装
-│   │   │   ├── rag.py             # RAG 检索 + Prompt 构建
-│   │   │   ├── tts.py             # Edge-TTS 合成
-│   │   │   ├── asr.py             # faster-whisper 识别
-│   │   │   └── digital_human.py   # 数字人配置
-│   │   └── db/
-│   │       └── database.py        # SQLAlchemy 模型 + Session
-│   ├── chroma_db/                 # 向量数据库（预置知识库）
-│   └── scripts/
-│       └── build_knowledge_base.py # 重建知识库
-├── frontend/
-│   ├── index.html
-│   ├── vite.config.ts
-│   └── src/
-│       ├── App.tsx                # 路由定义
-│       ├── main.tsx
-│       ├── components/            # 通用组件
-│       │   ├── DigitalHuman.tsx   # SVG 数字人
-│       │   ├── DigitalHuman3D.tsx # 3D 数字人 (Three.js)
-│       │   ├── LoginModal.tsx     # 登录弹窗
-│       │   └── ProfileDrawer.tsx  # 个人中心抽屉
-│       ├── pages/
-│       │   ├── tourist/           # 游客端页面
-│       │   │   ├── HomePage.tsx
-│       │   │   ├── ChatPage.tsx
-│       │   │   ├── TourPage.tsx
-│       │   │   ├── RecommendPage.tsx
-│       │   │   ├── DigitalHumanPage.tsx
-│       │   │   ├── FAQPage.tsx
-│       │   │   └── Layout.tsx
-│       │   └── admin/             # 管理后台页面
-│       │       ├── Dashboard.tsx
-│       │       ├── KnowledgeBase.tsx
-│       │       ├── DigitalHuman.tsx
-│       │       ├── ReportPage.tsx
-│       │       └── Layout.tsx
-│       ├── config/
-│       │   └── personas.ts        # 4 角色定义（声线/外观/风格）
-│       ├── contexts/
-│       │   └── UserContext.tsx     # 用户登录态管理
-│       ├── services/
-│       │   └── api.ts             # API 客户端封装
-│       └── utils/
-│           └── voice.ts           # 浏览器语音匹配
-├── 代码包/
-│   ├── OAC-config/                # OpenAvatarChat 配置文件
-│   ├── 需求分析-修订版.docx
-│   ├── 详细设计.docx
-│   └── 数据库实现.docx
-├── 示范景区公开资料包/             # 灵山胜境原始 docx 资料
-├── .gitignore
-└── README.md
-```
-
-## API 端点
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/chat/send` | 发送对话消息 |
-| POST | `/api/chat/v1` | OpenAI 兼容端点（供 OAC 调用） |
-| GET | `/api/chat/history` | 获取对话历史 |
-| POST | `/api/voice/tts` | 文本转语音 |
-| POST | `/api/voice/asr` | 语音转文本 |
-| POST | `/api/user/login` | 手机号登录 |
-| GET | `/api/user/profile` | 获取用户信息 |
-| PUT | `/api/user/profile` | 更新用户偏好 |
-| GET | `/api/admin/dashboard` | 数据大屏统计 |
-| GET/POST/PUT/DELETE | `/api/admin/knowledge` | 知识库 CRUD |
-| POST | `/api/admin/import-demo` | 导入示例资料 |
-| GET | `/api/admin/digital-humans` | 列出数字人角色 |
-| PUT | `/api/admin/digital-humans/:id` | 切换数字人 |
-| GET | `/api/admin/reports` | 反馈报告 |
-| GET | `/api/admin/tourists` | 游客列表 |
-| POST | `/api/upload/image` | 上传图片 |
-
-## 配置说明
-
-### 环境变量 (`backend/.env`)
+编辑 `frontend/.env.local`：
 
 ```env
-DEEPSEEK_API_KEY=your-api-key-here    # DeepSeek API 密钥（必填）
-DEEPSEEK_BASE_URL=https://api.deepseek.com
-DEEPSEEK_MODEL=deepseek-chat
+VITE_XMOV_APP_ID=你的魔珐星云_App_ID
+VITE_XMOV_APP_SECRET=你的魔珐星云_App_Secret
+VITE_XMOV_GATEWAY_SERVER=https://nebula-agent.xingyun3d.com/user/v1/ttsa/session
+VITE_XMOV_SDK_URL=https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js
 ```
 
-### 默认角色
+说明：
 
-系统默认使用"妙音"（优雅灵动女导游）。可通过管理后台 `/admin/digital-human` 切换，切换后对话提示词、OAC 数字人形象、TTS 声线同步更新。
+- `VITE_XMOV_APP_ID` 和 `VITE_XMOV_APP_SECRET` 由魔珐星云数字人平台提供。
+- 这两个值会进入前端构建产物，适合开发和比赛演示。生产环境如果平台支持服务端签名或临时 token，建议改成服务端换取临时凭证。
+- 不要提交 `.env.local`。
 
-### 局域网访问
+启动前端：
 
 ```bash
-# 前端 (Vite)
-# vite.config.ts 已配置 host: '0.0.0.0' + HTTPS
-# 同一 WiFi 下其他设备通过本机 IP 访问：
-https://<本机IP>:5173
-
-# 查看本机 IP
-python -c "import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(('10.255.255.255',1)); print(s.getsockname()[0])"
+npm run dev
 ```
 
-首次访问需信任自签名证书（浏览器 → 高级 → 继续前往）。麦克风权限需要 HTTPS 环境。
+前端默认地址：
 
-## 开发说明
+- `https://localhost:5173`
 
-### 知识库重建
+项目使用 Vite 自签名 HTTPS，主要是为了让浏览器允许麦克风录音。首次打开时浏览器会提示证书风险，开发环境选择继续访问即可。
+
+## 5. 使用流程
+
+1. 启动后端：`backend` 下执行 `python main.py`。
+2. 启动前端：`frontend` 下执行 `npm run dev`。
+3. 浏览器打开 `https://localhost:5173`。
+4. 首页进入 `AI导游`。
+5. 在数字人界面点击右上角“连接”，连接魔珐星云数字人。
+6. 使用底部输入框发送文字，或点击“麦”录音。
+7. 后端 ASR 识别语音，DeepSeek + RAG 生成答案，前端同步：
+   - 数字人播报答案。
+   - 对话框记录游客问题和数字人回答。
+   - 对话框“播报”按钮使用 Xiaoxiao 声音播放答案。
+8. 点击“对话框”查看完整问答记录，再点击“数字人”回到数字人全屏。
+
+## 6. 当前链路说明
+
+### 魔珐星云数字人
+
+入口文件：
+
+- `frontend/src/hooks/useXmovAvatar.ts`
+- `frontend/src/pages/tourist/ChatPage.tsx`
+
+调用流程：
+
+1. 从 `frontend/.env.local` 读取 `VITE_XMOV_APP_ID`、`VITE_XMOV_APP_SECRET`、SDK URL、gateway。
+2. 动态加载魔珐星云 Web SDK。
+3. 初始化 SDK 实例并绑定全屏容器。
+4. 用户点击“连接”后建立数字人会话。
+5. 问答流式完成后调用 `xmov.speak(reply)`。
+6. 用户点击“停止播报”时调用 `interactiveidle()` 中断当前播报。
+7. 用户点击“结束”时销毁当前会话，避免持续计费。
+
+### DeepSeek + RAG
+
+入口文件：
+
+- `backend/app/api/chat.py`
+- `backend/app/core/llm.py`
+- `backend/app/core/rag.py`
+
+调用流程：
+
+1. 前端调用 `/api/chat/stream`。
+2. 后端先做景区专有名词纠错。
+3. 使用 ChromaDB 检索灵山知识库。
+4. 构造导游提示词，限制回答精简、基于知识库、不编造。
+5. 调用 DeepSeek 流式接口。
+6. SSE token 返回前端，前端实时更新对话框和数字人文本区。
+
+### faster-whisper ASR
+
+入口文件：
+
+- `frontend/src/utils/asr.ts`
+- `backend/app/api/voice.py`
+- `backend/app/core/asr.py`
+
+调用流程：
+
+1. 前端使用 `MediaRecorder` 录音，自动选择浏览器支持的音频格式。
+2. 上传到 `/api/voice/asr`。
+3. 后端使用 faster-whisper 识别，默认 `language=zh`。
+4. 通过 `ASR_INITIAL_PROMPT` 和 `ASR_HOTWORDS` 加强“灵山胜境、九龙灌浴、佛足坛、青铜佛足印”等词。
+5. 返回前做景区词纠错。
+6. 纠正后的问题再进入问答链路。
+
+### Xiaoxiao TTS
+
+入口文件：
+
+- `backend/app/core/tts.py`
+- `backend/app/api/voice.py`
+- `frontend/src/pages/tourist/ChatPage.tsx`
+
+调用流程：
+
+1. 对话框点击“播报”。
+2. 前端调用 `/api/voice/tts`，voice 默认传 `zh-CN-XiaoxiaoNeural`。
+3. 后端使用 `edge-tts` 合成 MP3。
+4. 前端用 `Audio` 播放。
+
+注意：对话框播报声音和魔珐星云数字人平台内置声音是两条链路。当前只切换对话框播报为 Xiaoxiao，不修改魔珐平台中数字人自身的音源。
+
+## 7. 桌面端与手机端布局
+
+游客端不是复制两套功能，而是同一套功能逻辑、两套布局模式：
+
+- `frontend/src/hooks/useMediaQuery.ts` 判断宽度。
+- `frontend/src/pages/tourist/Layout.tsx` 生成 `app-shell--mobile` 或 `app-shell--desktop`。
+- `frontend/src/index.css` 中桌面端样式全部挂在 `.app-shell--desktop` 下。
+
+手机端：
+
+- 默认移动端布局。
+- `max-width: 480px` 外壳。
+- 底部 Tab 导航。
+
+桌面端：
+
+- `min-width: 900px` 时启用。
+- 左侧侧边导航。
+- 首页双栏布局。
+- 数字人/对话框全屏适配。
+- 导览页选中景点后左侧地图、右侧详情。
+- 路线页三列卡片。
+
+后续新增功能时建议：
+
+- API 调用、状态管理、语音、问答等逻辑只写一套。
+- 需要差异化布局时，通过 `useTouristLayoutMode()` 判断当前模式。
+- 桌面样式写入 `.app-shell--desktop ...` 命名空间，避免影响手机端。
+
+## 8. 常用命令
+
+后端：
 
 ```bash
 cd backend
-# 首次需联网下载 embedding 模型 (~400MB)
-$env:HF_HUB_OFFLINE="0"  # PowerShell
-python scripts/build_knowledge_base.py
-# 之后设置为离线模式
-$env:HF_HUB_OFFLINE="1"
+.\venv\Scripts\Activate.ps1
+python main.py
 ```
 
-预置的 `chroma_db/` 已包含灵山胜境知识库（62 个文本片段），通常无需重建。
+前端：
 
-### 向量模型
+```bash
+cd frontend
+npm run dev
+```
 
-使用 `shibing624/text2vec-base-chinese`，768 维。首次运行自动从 HuggingFace 缓存加载，设置 `HF_HUB_OFFLINE=1` 禁用联网检查。
+前端生产构建：
 
-### 数据库
+```bash
+cd frontend
+npm run build
+```
 
-SQLite 单文件 `backend/data.db`，6 张表：
-- `users` — 用户
-- `user_preferences` — 用户偏好
-- `chat_records` — 对话记录
-- `knowledge_docs` — 知识条目
-- `feedbacks` — 用户反馈
-- `digital_human_configs` — 数字人配置
+后端语法检查：
 
-首次启动自动建表，无需手动初始化。
+```bash
+cd backend
+python -m compileall app
+```
 
-## 常见问题
+重建知识库：
 
-**Q: 对话报错 "402 Payment Required"**
-A: DeepSeek API 余额不足，需充值。
+```bash
+cd backend
+python scripts/build_knowledge_base.py
+```
 
-**Q: 启动报 "DEEPSEEK_API_KEY 未设置"**
-A: `cp .env.example .env`，填写有效的 API Key。
+## 9. 局域网访问与麦克风
 
-**Q: 知识库检索无结果**
-A: 在管理后台点击"导入示例资料"，或运行 `python scripts/build_knowledge_base.py`。
+前端 Vite 已配置 `host: 0.0.0.0`。同一局域网设备可以访问：
 
-**Q: 前端无法连接后端**
-A: 确认后端运行在 `localhost:8000`，Vite 代理配置在 `vite.config.ts`。
+```text
+https://你的电脑局域网IP:5173
+```
 
-**Q: 数字人页面黑屏**
-A: 需要启动 OpenAvatarChat 服务（见上方"3D 数字人"章节），或直接使用 SVG 数字人（问答/导览页已内置）。
+查看本机 IP：
 
-**Q: HTTPS 证书警告**
-A: 项目使用 Vite 自签名证书（`@vitejs/plugin-basic-ssl`），用于启用麦克风权限，点"继续前往"即可。
+```bash
+python -c "import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.connect(('10.255.255.255',1)); print(s.getsockname()[0])"
+```
+
+麦克风录音需要 HTTPS 或 localhost 安全上下文。手机访问局域网地址时，需要浏览器允许麦克风权限。
+
+## 10. 常见问题
+
+### 后端启动提示 8000 端口占用
+
+说明已有后端进程在运行。Windows 可查看并结束：
+
+```powershell
+Get-NetTCPConnection -LocalPort 8000 | Select-Object LocalAddress,LocalPort,State,OwningProcess
+Stop-Process -Id 进程ID
+```
+
+### 问答服务不可用
+
+检查：
+
+- `backend/.env` 是否配置 `DEEPSEEK_API_KEY`。
+- DeepSeek 账户是否有余额。
+- 后端是否在 `http://localhost:8000` 运行。
+- 前端是否通过 `npm run dev` 启动。
+
+### 数字人无法连接
+
+检查：
+
+- `frontend/.env.local` 是否配置 `VITE_XMOV_APP_ID` 和 `VITE_XMOV_APP_SECRET`。
+- 魔珐星云平台应用是否可用。
+- 浏览器控制台是否有 SDK 加载失败或鉴权失败。
+- 点击“结束”可主动销毁当前会话，避免持续计费。
+
+### 语音识别失败
+
+检查：
+
+- 浏览器是否允许麦克风权限。
+- 是否通过 `https://localhost:5173` 访问。
+- 后端是否安装 `faster-whisper` 相关依赖。
+- 首次运行是否成功下载 Whisper 模型。
+
+### 语音识别不准确
+
+可在 `backend/.env` 中提高模型：
+
+```env
+WHISPER_MODEL=small
+```
+
+或继续提高到 `medium`、`large-v3`。模型越大越准确，但下载体积、内存和推理时间也越高。
+
+也可以扩展：
+
+```env
+ASR_INITIAL_PROMPT=以下是普通话简体中文灵山景区导游问答...
+ASR_HOTWORDS=无锡 灵山胜境 灵山大佛 佛足坛 青铜佛足印 九龙灌浴 梵宫 五印坛城 祥符禅寺
+```
+
+### 对话框播报没有声音
+
+检查：
+
+- 后端 `.env` 中 `TTS_PROVIDER=edge`。
+- 已重启后端，让 `.env` 生效。
+- 浏览器是否允许自动播放，必要时先点击页面任意位置。
+
+## 11. 安全说明
+
+- 不要提交 `backend/.env`、`frontend/.env.local`。
+- 不要在 README、截图、日志中公开 DeepSeek API Key、魔珐星云 App ID/App Secret。
+- 当前前端 SDK 方式需要在浏览器侧使用魔珐星云配置，适合本地开发和演示；生产环境建议使用平台支持的临时凭证或服务端签名方案。

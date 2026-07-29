@@ -91,9 +91,9 @@ export default function RecommendPage() {
     : routes
 
   return (
-    <div className="page-enter" style={{ padding: '20px 16px 32px' }}>
+    <div className="page-enter tourist-recommend" style={{ padding: '20px 16px 32px' }}>
       {/* 头部 */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="tourist-recommend-header" style={{ marginBottom: 20 }}>
         <h2 style={{ fontSize: 22, fontWeight: 700 }}>游览路线推荐</h2>
         <p style={{ fontSize: 13, color: '#9c948c', marginTop: 4 }}>
           {user?.travel_style
@@ -113,7 +113,7 @@ export default function RecommendPage() {
         return (
           <div
             key={i}
-            className="card"
+            className="card tourist-route-card"
             style={{
               marginBottom: 16,
               borderLeft: `4px solid ${r.color}`,
