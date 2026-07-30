@@ -112,23 +112,22 @@ def seed_default_scenic_spot():
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     Base.metadata.create_all(engine)
-
-    # 兼容旧表：先补列，再种子数据（种子数据依赖这些列）
-    def _add_column(table: str, col_def: str):
-        try:
-            from sqlalchemy import text
-            with engine.connect() as conn:
-                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_def}"))
-                conn.commit()
-        except Exception:
-            pass  # 列已存在则忽略
-
-    _add_column("chat_records", "user_id INTEGER")
-    _add_column("knowledge_docs", "chroma_ids TEXT DEFAULT '[]'")
-    _add_column("visitor_reviews", "deleted INTEGER DEFAULT 0")
-    _add_column("visitor_checkins", "deleted INTEGER DEFAULT 0")
-
     seed_default_scenic_spot()
+    # 兼容旧表：为 chat_records 添加 user_id 列（若不存在）
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE chat_records ADD COLUMN user_id INTEGER"))
+            conn.commit()
+    except Exception:
+        pass  # 列已存在则忽略
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE knowledge_docs ADD COLUMN chroma_ids TEXT DEFAULT '[]'"))
+            conn.commit()
+    except Exception:
+        pass  # 列已存在则忽略
 
 
 def get_db():
