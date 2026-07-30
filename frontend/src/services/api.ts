@@ -109,25 +109,6 @@ export const touristApi = {
   getInsights: () => api.get('/admin/tourist/insights').then((r) => r.data),
 }
 
-// 游客评价
-export const reviewApi = {
-  list: (spotId: string, page = 1, size = 50) =>
-    api.get('/admin/reviews', { params: { spot_id: spotId, page, size } }).then((r) => r.data),
-  create: (data: { spot_id: string; author: string; avatar: string; rating: number; text: string }) =>
-    api.post('/admin/reviews', data).then((r) => r.data),
-  delete: (id: number) => api.delete(`/admin/reviews/${id}`).then((r) => r.data),
-  stats: () => api.get('/admin/reviews/stats').then((r) => r.data),
-}
-
-// 游客打卡
-export const checkinApi = {
-  list: (spotId: string, page = 1, size = 50) =>
-    api.get('/admin/checkins', { params: { spot_id: spotId, page, size } }).then((r) => r.data),
-  create: (data: { spot_id: string; author: string; image: string; caption: string }) =>
-    api.post('/admin/checkins', data).then((r) => r.data),
-  delete: (id: number) => api.delete(`/admin/checkins/${id}`).then((r) => r.data),
-}
-
 // 用户系统
 export const userApi = {
   sendCode: (phone: string) => api.post('/user/send-code', { phone }).then((r) => r.data),
