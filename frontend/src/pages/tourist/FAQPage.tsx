@@ -84,7 +84,7 @@ export default function FAQPage() {
           background: 'rgba(255,255,255,0.04)',
         }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h1 style={{ color: '#fff', fontSize: 26, fontWeight: 700, marginBottom: 8 }}>
+          <h1 className="guofeng-title" style={{ color: '#fff', fontSize: 26, marginBottom: 8 }}>
             🤖 灵山AI导游使用指南
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, lineHeight: 1.6 }}>

@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { chatApi, voiceApi, adminApi } from '../../services/api'
 import { useXmovAvatar } from '../../hooks/useXmovAvatar'
 import { getSupportedAudioMimeType, normalizeScenicQuestion } from '../../utils/asr'
+import { useTouristLayoutMode } from './Layout'
+import { getXmovAvatarProfile, XMOV_AVATAR_PROFILES, XMOV_AVATAR_STORAGE_KEY } from '../../config/xmovAvatars'
 
 interface ChatMessage {
   role: 'user' | 'ai' | 'error'
@@ -15,6 +17,18 @@ type ViewMode = 'avatar' | 'dialog'
 const STORAGE_KEY = 'lingshan_unified_guide_history'
 const SESSION_KEY = 'lingshan_unified_guide_session'
 const XIAOXIAO_VOICE = 'zh-CN-XiaoxiaoNeural'
+const DESKTOP_QUICK_QUESTIONS = [
+  '灵山大佛有多高？',
+  '梵宫有什么建筑特色？',
+  '九龙灌浴几点开始？',
+  '推荐一条半日游路线',
+]
+const INPUT_QUICK_QUESTIONS = [
+  { label: '购票相关', question: '请介绍一下灵山胜境的票价、购票方式和优惠政策。' },
+  { label: '演出活动相关', question: '请介绍一下灵山胜境的演出活动、开放时间和推荐观看安排。' },
+  { label: '服务设施相关', question: '请介绍一下灵山胜境的服务设施，比如停车、餐饮、卫生间和游客中心。' },
+  { label: '住宿相关', question: '请介绍一下灵山胜境及周边的住宿相关信息。' },
+]
 
 function createSessionId() {
   return `guide-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -54,11 +68,19 @@ function getSessionId() {
 }
 
 function hideAvatarTextOverlays(container: HTMLElement) {
+  if (!container.querySelector('canvas, video, img, svg')) return
+
   const nodes = container.querySelectorAll<HTMLElement>('*')
   nodes.forEach((node) => {
     const tag = node.tagName.toLowerCase()
-    if (['canvas', 'video', 'img', 'svg', 'path'].includes(tag)) return
-    if (node.querySelector('canvas, video, img, svg')) return
+    if (['canvas', 'video', 'img', 'svg', 'path'].includes(tag)) {
+      node.style.display = ''
+      return
+    }
+    if (node.querySelector('canvas, video, img, svg')) {
+      if (node.style.display === 'none') node.style.display = ''
+      return
+    }
     if (!node.textContent?.trim()) return
     node.style.display = 'none'
   })
@@ -67,7 +89,19 @@ function hideAvatarTextOverlays(container: HTMLElement) {
 export default function ChatPage() {
   const [searchParams] = useSearchParams()
   const initialQuestion = searchParams.get('q') || ''
-  const xmov = useXmovAvatar()
+  const [selectedAvatarKey, setSelectedAvatarKey] = useState(() => {
+    try {
+      return getXmovAvatarProfile(localStorage.getItem(XMOV_AVATAR_STORAGE_KEY)).key
+    } catch {
+      return XMOV_AVATAR_PROFILES[0].key
+    }
+  })
+  const selectedAvatar = useMemo(() => getXmovAvatarProfile(selectedAvatarKey), [selectedAvatarKey])
+  const xmov = useXmovAvatar({
+    appId: selectedAvatar.appId,
+    appSecret: selectedAvatar.appSecret,
+  })
+  const { isDesktop } = useTouristLayoutMode()
 
   const [viewMode, setViewMode] = useState<ViewMode>('avatar')
   const [fullTextVisible, setFullTextVisible] = useState(true)
@@ -94,6 +128,12 @@ export default function ChatPage() {
   const avatarBusy = xmov.status === 'loading-sdk' || xmov.status === 'initializing'
   const avatarSpeaking = xmov.status === 'speaking'
   const inputDisabled = loading || listening
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(XMOV_AVATAR_STORAGE_KEY, selectedAvatar.key)
+    } catch { /* ignore */ }
+  }, [selectedAvatar.key])
 
   const latestAiText = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -122,6 +162,16 @@ export default function ChatPage() {
     observer.observe(container, { childList: true, subtree: true, characterData: true })
     return () => observer.disconnect()
   }, [xmov.containerId])
+
+  useEffect(() => {
+    if (!isDesktop || (xmov.status !== 'live' && xmov.status !== 'speaking')) return
+
+    const resizeTimers = [
+      window.setTimeout(() => window.dispatchEvent(new Event('resize')), 80),
+      window.setTimeout(() => window.dispatchEvent(new Event('resize')), 420),
+    ]
+    return () => resizeTimers.forEach((timer) => window.clearTimeout(timer))
+  }, [isDesktop, xmov.status])
 
   const stopAudio = useCallback(() => {
     playIdRef.current += 1
@@ -327,15 +377,57 @@ export default function ChatPage() {
     await xmov.disconnect()
   }
 
+  const selectAvatar = async (avatarKey: string) => {
+    if (avatarKey === selectedAvatar.key || avatarBusy) return
+    stopAudio()
+    if (avatarSpeaking) stopAvatarSpeaking()
+    if (avatarConnected || xmov.status === 'error') await xmov.disconnect()
+    setSelectedAvatarKey(getXmovAvatarProfile(avatarKey).key)
+    setFullTextVisible(true)
+  }
+
   const avatarStatusText = (() => {
-    if (!xmov.configured) return '数字人未配置'
+    if (!xmov.configured) return `${selectedAvatar.name} 未配置`
     if (xmov.status === 'idle') return '数字人未连接'
-    if (xmov.status === 'loading-sdk') return '正在加载数字人'
-    if (xmov.status === 'initializing') return `正在初始化数字人 ${xmov.progress}%`
+    if (xmov.status === 'loading-sdk') return '数字人连接中'
+    if (xmov.status === 'initializing') return '数字人连接中'
     if (xmov.status === 'speaking') return '数字人正在讲解'
     if (xmov.status === 'error') return xmov.error ? '数字人连接失败' : '数字人连接失败'
     return '数字人在线'
   })()
+
+  const avatarSelector = (
+    <div
+      className="tourist-chat-avatar-selector"
+      aria-label="选择数字人"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <span className="tourist-chat-avatar-selector-label">数字人</span>
+      <div className="tourist-chat-avatar-options">
+        {XMOV_AVATAR_PROFILES.map((profile) => {
+          const active = profile.key === selectedAvatar.key
+          const configured = Boolean(profile.appId && profile.appSecret)
+          return (
+            <button
+              key={profile.key}
+              type="button"
+              className={[
+                'tourist-chat-avatar-option',
+                active ? 'active' : '',
+                configured ? '' : 'missing',
+              ].filter(Boolean).join(' ')}
+              onClick={() => void selectAvatar(profile.key)}
+              disabled={avatarBusy}
+              title={configured ? profile.name : '未配置应用参数'}
+            >
+              <span aria-hidden="true" />
+              {profile.name}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 
   const inputBar = (
     <div
@@ -412,12 +504,25 @@ export default function ChatPage() {
           送
         </button>
       </div>
+      <div className="tourist-chat-input-quick-row" aria-label="快捷问答">
+        {INPUT_QUICK_QUESTIONS.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            onClick={() => void sendMessage(item.question)}
+            disabled={inputDisabled}
+            title={item.question}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 
   const dialogMessages = (
     <div className="tourist-chat-messages" style={{ overflow: 'auto', padding: '12px 14px', minHeight: 0 }}>
-      {messages.length > 1 && (
+      {messages.length > 1 && !isDesktop && (
         <div style={{ textAlign: 'center', marginBottom: 10 }}>
           <button
             onClick={clearHistory}
@@ -513,12 +618,107 @@ export default function ChatPage() {
     </div>
   )
 
+  if (isDesktop) {
+    return (
+      <div className="tourist-chat-shell tourist-chat-desktop" style={{ display: 'flex', flexDirection: 'column' }}>
+        {/* 顶栏：统一国风标题 */}
+        <header className="tour-page-header" style={{ margin: '0 20px', padding: '10px 14px 4px', flexShrink: 0 }}>
+          <h1 className="tour-title">灵山胜境 · 云端伴游</h1>
+          <p className="tour-subtitle">有问必答，如影随形 — 您的专属 AI 导游在线</p>
+        </header>
+        <div className="tourist-chat-desktop-panel" style={{ flex: 1, minHeight: 0 }}>
+          <section className="tourist-chat-desktop-dialog" aria-label="数字人问答">
+            <header className="tourist-chat-desktop-header">
+              <div className="tourist-chat-desktop-tools">
+                <button type="button" onClick={clearHistory}>清空记录</button>
+                {(avatarSpeaking || speakingIdx >= 0) && (
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={() => {
+                      stopAvatarSpeaking()
+                      stopAudio()
+                    }}
+                  >
+                    停止播报
+                  </button>
+                )}
+              </div>
+            </header>
+
+            <div className="tourist-chat-quick-row" aria-label="推荐问题">
+              {DESKTOP_QUICK_QUESTIONS.map((question) => (
+                <button
+                  key={question}
+                  type="button"
+                  onClick={() => void sendMessage(question)}
+                  disabled={inputDisabled}
+                >
+                  {question}
+                </button>
+              ))}
+            </div>
+
+            {dialogMessages}
+            {inputBar}
+          </section>
+
+          <aside className="tourist-chat-desktop-avatar" aria-label="数字人">
+            <div className="guofeng-title" style={{ fontSize: 13, color: '#4a3c31', marginBottom: 8, padding: '0 4px', letterSpacing: '0.05em' }}>AI导游 · 智能问答</div>
+            <div className="tourist-chat-avatar-actions">
+              {xmov.configured && !avatarConnected && !avatarBusy && (
+                <button type="button" onClick={() => void connectAvatar()}>
+                  {xmov.status === 'error' ? '重连数字人' : '连接数字人'}
+                </button>
+              )}
+              {xmov.configured && (avatarConnected || avatarBusy) && (
+                <button type="button" className="danger" onClick={() => void disconnectAvatar()}>
+                  结束对话
+                </button>
+              )}
+            </div>
+            <div className="tourist-chat-avatar-status-pill">
+              <span className={avatarConnected ? 'online' : avatarBusy ? 'busy' : ''} />
+              {avatarStatusText}
+            </div>
+            <div className="tourist-chat-avatar-stage">
+              <div id={xmov.containerId} className="tourist-chat-avatar-canvas" />
+              {(!avatarConnected && !avatarBusy) && (
+                <div className="tourist-chat-standby-avatar" aria-hidden="true">
+                  <img
+                    className="tourist-chat-standby-image"
+                    src={selectedAvatar.standbyImage}
+                    alt=""
+                    draggable={false}
+                  />
+                </div>
+              )}
+              {(!xmov.configured || xmov.status === 'idle' || xmov.status === 'error') && (
+                <div className="tourist-chat-avatar-placeholder">
+                  <strong>数字人待机中</strong>
+                  <span>
+                    {xmov.configured
+                      ? '连接后可由数字人同步讲解，左侧仍可直接进行文字或语音问答。'
+                      : '请先配置数字人应用参数，左侧问答功能可继续使用。'}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="tourist-chat-avatar-bottom">
+              {avatarSelector}
+            </div>
+          </aside>
+        </div>
+      </div>
+    )
+  }
+
   if (viewMode === 'dialog') {
     return (
       <div className="tourist-chat-shell tourist-chat-dialog" style={{
         height: 'calc(100vh - 60px)',
         display: 'grid',
-        gridTemplateRows: 'auto 1fr auto',
+        gridTemplateRows: 'auto auto 1fr auto',
         background: '#f7f4ef',
         overflow: 'hidden',
       }}>
@@ -551,6 +751,9 @@ export default function ChatPage() {
             数字人
           </button>
         </header>
+        <div className="tourist-chat-dialog-avatar-picker">
+          {avatarSelector}
+        </div>
         {dialogMessages}
         {inputBar}
       </div>
@@ -579,6 +782,14 @@ export default function ChatPage() {
           background: 'radial-gradient(circle at 50% 18%, #1d2e29 0%, #050505 62%)',
         }}
       />
+      {(!avatarConnected && !avatarBusy) && (
+        <img
+          className="tourist-chat-mobile-standby-image"
+          src={selectedAvatar.standbyImage}
+          alt=""
+          draggable={false}
+        />
+      )}
 
       {(!xmov.configured || xmov.status === 'idle' || xmov.status === 'error') && (
         <div style={{
@@ -691,7 +902,7 @@ export default function ChatPage() {
           style={{
             position: 'absolute',
             left: '50%',
-            bottom: fullTextVisible ? 190 : 88,
+            bottom: fullTextVisible ? 238 : 136,
             transform: 'translateX(-50%)',
             zIndex: 6,
             border: 'none',
@@ -716,7 +927,7 @@ export default function ChatPage() {
             position: 'absolute',
             left: 14,
             right: 14,
-            bottom: 78,
+            bottom: 132,
             zIndex: 4,
             maxHeight: '34vh',
             overflow: 'auto',
@@ -736,7 +947,8 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 5 }}>
+      <div className="tourist-chat-mobile-bottom">
+        {avatarSelector}
         {inputBar}
       </div>
     </div>

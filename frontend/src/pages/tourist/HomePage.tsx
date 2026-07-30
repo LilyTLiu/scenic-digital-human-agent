@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useUser } from '../../contexts/UserContext'
 import LoginModal from '../../components/LoginModal'
@@ -23,16 +23,15 @@ const defaultQuestions = [
   '梵宫有什么看点？',
 ]
 
-// 根据偏好标签匹配快捷提问
 const preferenceQuestions: Record<string, string[]> = {
   '佛教文化': ['灵山大佛的建造背景？', '祥符禅寺千年历史？', '五印坛城有什么特色？'],
   '建筑艺术': ['梵宫的建筑风格有何独特？', '灵山大照壁的雕刻细节？', '九龙灌浴雕塑的设计理念？'],
-  '历史典故': ['唐玄奘与小灵山的故事？', '灵山胜境的发展历程？', '赵朴初与灵山的渊源？'],
-  '自然风光': ['灵山太湖最佳观景点？', '哪个季节来灵山最美？', '菩提大道有什么植物景观？'],
+  '历史典故': ['唐玄奢与小灵山的故事？', '灵山胜境的发展历程？', '赵朴初与灵山的溊源？'],
+  '自然风光': ['灵山太湖最佳观景点？', '哪个季节来灵山最美？', '蒲提大道有什么植物景观？'],
   '亲子互动': ['带孩子怎么玩灵山？', '九龙灌浴几点表演？', '灵山有哪些互动体验项目？'],
   '禅修体验': ['灵山精舍有禅修课程吗？', '如何预约禅修体验？', '灵山有哪些适合冥想的地方？'],
   '摄影打卡': ['灵山最佳拍照点在哪里？', '梵宫哪个角度拍最好看？', '什么时间拍大佛光线最好？'],
-  '美食素斋': ['灵山素食餐厅推荐？', '梵宫素斋有什么特色菜？', '灵山周边有什么美食？'],
+  '美食素宅': ['灵山素食餐厅推荐？', '梵宫素宅有什么特色菜？', '灵山周边有什么美食？'],
 }
 
 function getPersonalizedQuestions(interests: string[]): string[] {
@@ -41,7 +40,6 @@ function getPersonalizedQuestions(interests: string[]): string[] {
     const matched = preferenceQuestions[tag]
     if (matched) qs.push(...matched)
   }
-  // 取前5个，不足的用默认补齐
   const unique = [...new Set(qs)]
   if (unique.length < 5) {
     for (const dq of defaultQuestions) {
@@ -51,12 +49,37 @@ function getPersonalizedQuestions(interests: string[]): string[] {
   }
   return unique.slice(0, 5)
 }
-
 export default function HomePage() {
   const navigate = useNavigate()
   const { user, login } = useUser()
   const [loginOpen, setLoginOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [weather, setWeather] = useState<{temp:string;weather:string;wind:string} | null>(null)
+
+  useEffect(() => {
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=31.42&longitude=120.10&current=temperature_2m,weather_code,wind_speed_10m')
+      .then(r => r.json())
+      .then(d => {
+        if (d.current) {
+          const code = d.current.weather_code
+          const weatherMap: Record<number, string> = {
+            0: '晴天', 1: '晴', 2: '多云', 3: '阴天',
+            45: '雾', 48: '雾凇',
+            51: '小雨', 53: '小雨', 55: '中雨',
+            61: '小雨', 63: '中雨', 65: '大雨',
+            71: '小雪', 73: '中雪', 75: '大雪',
+            80: '阵雨', 81: '阵雨', 82: '暴雨',
+            95: '雷暴', 96: '雷暴', 99: '雷暴',
+          }
+          setWeather({
+            temp: d.current.temperature_2m.toFixed(0),
+            weather: weatherMap[code] || '未知',
+            wind: d.current.wind_speed_10m.toFixed(0),
+          })
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   const quickQuestions = user?.interests?.length
     ? getPersonalizedQuestions(user.interests)
@@ -68,150 +91,94 @@ export default function HomePage() {
 
   return (
     <div className="page-enter tourist-home" style={{ padding: '0 0 32px', position: 'relative' }}>
-      {/* === Hero 景区封面 === */}
-      <div className="tourist-home-hero" style={{
-        background: scenicSpots[0].cover,
-        padding: '40px 24px 48px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        <div style={{
-          position: 'absolute', top: -20, right: -30,
-          width: 180, height: 180, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.04)',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: 30, left: -40,
-          width: 120, height: 120, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.03)',
-        }} />
 
-        {/* 右上角个人中心按钮 */}
-        <div style={{
-          position: 'absolute', top: 12, right: 16, zIndex: 10,
-        }}>
-          {user ? (
-            <button
-              onClick={() => setProfileOpen(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '6px 12px 6px 6px', borderRadius: 20,
-                background: 'rgba(255,255,255,0.18)', border: 'none',
-                color: '#fff', fontSize: 13, cursor: 'pointer',
-                backdropFilter: 'blur(8px)', transition: 'all 0.2s',
-              }}
-            >
-              <div style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #c8963e, #e88b7e)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 14, fontWeight: 700,
-              }}>
-                {user.nickname?.[0] || '👤'}
+      {/* === 顶部：大图 + 悬浮信息卡片 === */}
+      <div style={{ margin: '0 20px 0', position: 'relative', gridColumn: '1 / -1', paddingBottom: 50 }}>
+        <div style={{ width: '100%', height: 280, background: 'url(/images/spots/lingshandafo_hero.jpg) center / cover no-repeat', borderRadius: 16, overflow: 'hidden', position: 'relative', cursor: 'pointer', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease', boxShadow: '0 4px 20px rgba(184,166,135,0.08)' }}
+          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 36px rgba(44,41,38,0.12)' }}
+          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(184,166,135,0.08)' }}
+        >
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(74,60,49,0.42) 100%)' }} />
+          <div style={{ position: 'relative', zIndex: 1, height: '100%', padding: '22px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'rgba(251,249,245,0.20)', color: '#fbf9f5', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,249,245,0.25)' }}>国家5A级景区</span>
+                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'rgba(251,249,245,0.20)', color: '#fbf9f5', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,249,245,0.25)' }}>世界佛教论坛永久会址</span>
               </div>
-              <span style={{ maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.nickname}
-              </span>
-            </button>
-          ) : (
-            <button
-              onClick={() => setLoginOpen(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 16px', borderRadius: 20,
-                background: 'rgba(255,255,255,0.18)', border: 'none',
-                color: '#fff', fontSize: 13, cursor: 'pointer',
-                backdropFilter: 'blur(8px)', transition: 'all 0.2s',
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
-              </svg>
-              登录
-            </button>
-          )}
+              <div>
+                {user ? (
+                  <button onClick={() => setProfileOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 4px', borderRadius: 16, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 12, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, #c8963e, #e88b7e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{user.nickname?.[0] || '👤'}</div>
+                    <span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.nickname}</span>
+                  </button>
+                ) : (
+                  <button onClick={() => setLoginOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 16, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 12, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg> 登录
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <h1 style={{ fontFamily: "'Noto Serif SC', 'Source Han Serif SC', serif", fontSize: 30, color: '#fbf9f5', fontWeight: 700, marginBottom: 6, textShadow: '0 2px 8px rgba(0,0,0,0.30)', letterSpacing: '0.03em' }}>步入灵山胜境，静听梵音澄心</h1>
+              <p style={{ fontSize: 14, color: 'rgba(251,249,245,0.80)', lineHeight: 1.5, textShadow: '0 1px 4px rgba(0,0,0,0.20)' }}>从梵宫圣境到九龙灌浴，为你开启一场洗涤心灵的智慧行游。</p>
+            </div>
+          </div>
         </div>
 
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <span style={{
-            display: 'inline-block', padding: '4px 12px',
-            borderRadius: 20, fontSize: 11, fontWeight: 600,
-            background: 'rgba(255,255,255,0.18)', color: '#fff',
-            marginBottom: 16,
-          }}>
-            国家AAAAA级旅游景区
-          </span>
-          <h1 style={{ color: '#fff', fontSize: 32, fontWeight: 700, marginBottom: 4 }}>
-            {scenicSpots[0].name}
-          </h1>
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, marginBottom: 20 }}>
-            {scenicSpots[0].subtitle}
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {scenicSpots[0].tags.map((t) => (
-              <span key={t} style={{
-                padding: '3px 10px', borderRadius: 14,
-                background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.85)',
-                fontSize: 12,
-              }}>{t}</span>
-            ))}
-          </div>
-
-          {/* 登录用户问候语 */}
-          {user && (
-            <div style={{
-              marginTop: 16, padding: '10px 16px', borderRadius: 12,
-              background: 'rgba(255,255,255,0.08)', color: '#fff',
-              fontSize: 13, lineHeight: 1.5,
-            }}>
-              👋 欢迎回来，<strong>{user.nickname}</strong>！
-              {user.travel_style && (
-                <span style={{ marginLeft: 8, opacity: 0.8 }}>
-                  已为你定制<strong>{user.travel_style}</strong>专属内容
-                </span>
-              )}
+        {/* 压线悬浮四卡片 */}
+        <div style={{ position: 'absolute', bottom: 0, left: 24, right: 24, zIndex: 10, display: 'flex', gap: 14 }}>
+          {[
+            { value: '15+', label: '核心胜境' },
+            { value: weather ? `${weather.temp}°C` : '--°C', label: '今日气温' },
+            { value: '4-6', label: '游览时长', unit: 'h' },
+            { value: '禅意', label: '人文风物', unit: '美学' },
+          ].map((card, i) => (
+            <div key={i} style={{ flex: 1, height: 80, background: '#fbf9f5', borderRadius: 14, border: '1px solid rgba(184,166,135,0.28)', boxShadow: '0 10px 25px rgba(184,166,135,0.18)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: 14, paddingLeft: 18, cursor: 'pointer', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease' }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 14px 32px rgba(168,135,84,0.25)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(184,166,135,0.18)' }}
+            >
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#a88754', fontFamily: 'system-ui, sans-serif', lineHeight: 1.2 }}>{card.value}{card.unit && <span style={{ fontSize: 13, fontWeight: 500, marginLeft: 2, color: '#a88754' }}>{card.unit}</span>}</div>
+              <div style={{ fontSize: 11, color: '#8c7c6e', marginTop: 3, fontFamily: "'Noto Serif SC', serif", letterSpacing: '0.05em' }}>{card.label}</div>
             </div>
-          )}
+          ))}
         </div>
       </div>
 
-      {/* === AI数字导游 === */}
-      <div className="tourist-home-guide" style={{ padding: '0 20px', marginTop: -20, position: 'relative', zIndex: 2 }}>
-        <div className="card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 17, fontWeight: 600, marginBottom: 2 }}>AI数字导游</h3>
-          <p style={{ fontSize: 13, color: '#9c948c', marginBottom: 16 }}>
-            数字人形象 + 灵山知识库问答 + 对话框播报
-          </p>
-
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 14,
-            padding: '14px 16px', borderRadius: 14,
-            background: '#c8963e0D',
-            border: '1.5px solid #c8963e25',
-          }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: 'linear-gradient(135deg, #1a1a2e, #c8963e)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 18,
-              boxShadow: '0 3px 12px rgba(200,150,62,0.28)',
-              flexShrink: 0,
-            }}>AI</div>
-            <div>
-              <span style={{ fontSize: 18, fontWeight: 700, color: '#c8963e' }}>灵山 AI 导游</span>
-              <div style={{ fontSize: 12, color: '#9c948c', marginTop: 2 }}>文字、语音与数字人统一问答</div>
-              <div style={{ fontSize: 11, color: '#c8963e', marginTop: 2, fontWeight: 500 }}>
-                回答记录会同步展示在对话框中
-              </div>
+      {/* === AI数字导游 + 地图导览（6:4） === */}
+      <div style={{ margin: '-10px 20px 0', display: 'flex', gap: 14, position: 'relative', zIndex: 3, gridColumn: '1 / -1' }}>
+        <div style={{ flex: 6, display: 'flex', alignItems: 'stretch' }}>
+          <div className="card" style={{ background: 'rgba(255,252,247,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', padding: '18px', display: 'flex', gap: 16, alignItems: 'center', width: '100%', height: '100%' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h2 className="guofeng-title" style={{ fontSize: 18, color: '#c8963e', marginBottom: 3 }}>我在灵山胜境等你</h2>
+              <p style={{ fontSize: 12, color: '#5c5348', lineHeight: 1.6, marginBottom: 12 }}>我是导游小文，游览路线、灵山故事都可以问我。</p>
+              <button onClick={() => navigate('/tourist/chat')} style={{ padding: '7px 22px', borderRadius: 20, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #c8963e, #a0722a)', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 12px rgba(200,150,62,0.28)', fontFamily: 'inherit' }}
+                onMouseEnter={e => { (e.target as HTMLButtonElement).style.transform = 'translateY(-1px)' }}
+                onMouseLeave={e => { (e.target as HTMLButtonElement).style.transform = 'translateY(0)' }}
+              >💬 与我对话</button>
             </div>
+            <div style={{ width: 90, height: 120, flexShrink: 0, borderRadius: 10, overflow: 'hidden', background: 'linear-gradient(135deg, rgba(200,150,62,0.08), rgba(180,130,70,0.04))' }}>
+              <img src="/avatars/guide-xiaowen.png" alt="导游小文" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+          </div>
+        </div>
+        <div style={{ flex: 4, display: 'flex', alignItems: 'stretch' }}>
+          <div className="card" style={{ background: 'rgba(255,252,247,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', padding: '18px', cursor: 'pointer', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease', width: '100%', height: '100%' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(45,138,123,0.15)' }}
+            onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
+            onClick={() => navigate('/tourist/tour')}
+          >
+            <div style={{ fontSize: 26, marginBottom: 4 }}>🗺️</div>
+            <h2 className="guofeng-title" style={{ fontSize: 16, color: '#2d8a7b', marginBottom: 3 }}>游园导览地图</h2>
+            <p style={{ fontSize: 12, color: '#5c5348', lineHeight: 1.6, marginBottom: 10 }}>景点定位、路线规划，一图在手游灵山。</p>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#2d8a7b', display: 'flex', alignItems: 'center', gap: 4 }}>立即探索 <span style={{ fontSize: 14 }}>→</span></div>
           </div>
         </div>
       </div>
 
+// 根据偏好标签匹配快捷提问
       {/* === 快捷提问 === */}
-      <div className="tourist-home-questions" style={{ padding: '0 20px', marginTop: 20 }}>
-        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+      <div className="tourist-home-questions card" style={{ padding: '20px', margin: '20px 20px 0' }}>
+        <h3 className="guofeng-title" style={{ fontSize: 16, marginBottom: 4 }}>
           {user?.interests?.length ? '为你推荐' : '大家都在问'}
         </h3>
         {user?.interests?.length ? (
@@ -244,7 +211,7 @@ export default function HomePage() {
       </div>
 
       {/* === 开始按钮 === */}
-      <div className="tourist-home-actions" style={{ padding: '0 20px', marginTop: 28, textAlign: 'center' }}>
+      <div className="tourist-home-actions card" style={{ padding: '24px 20px', margin: '20px 20px 0', textAlign: 'center' }}>
         <button
           className="btn-primary"
           style={{ width: '100%', height: 52, fontSize: 17 }}
@@ -266,27 +233,9 @@ export default function HomePage() {
           </svg>
           景区导览演示
         </button>
-        <button
-          className="btn-secondary"
-          style={{ width: '100%', height: 48, fontSize: 15, marginTop: 10 }}
-          onClick={() => navigate('/tourist/faq')}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-          使用指南
-        </button>
-        <p style={{ fontSize: 12, color: '#9c948c', marginTop: 10 }}>
-          支持语音输入和文字输入 · 24小时在线
-        </p>
       </div>
 
-      {/* 登录弹窗 */}
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} onLogin={login} />
-
-      {/* 个人中心抽屉 */}
       <ProfileDrawer open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   )

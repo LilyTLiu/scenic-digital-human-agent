@@ -37,7 +37,7 @@ const tabs: Tab[] = [
   },
   {
     key: '/tourist/chat',
-    label: 'AI导游',
+    label: '云端伴游',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" stroke={active ? '#c8963e' : '#9c948c'} strokeWidth="2">
         <circle cx="12" cy="8" r="4"/>
@@ -49,7 +49,7 @@ const tabs: Tab[] = [
   },
   {
     key: '/tourist/tour',
-    label: '导览',
+    label: '游园地图',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" stroke={active ? '#c8963e' : '#9c948c'} strokeWidth="2">
         <rect x="2" y="3" width="20" height="14" rx="2"/>
@@ -59,8 +59,18 @@ const tabs: Tab[] = [
     ),
   },
   {
+    key: '/tourist/plan',
+    label: '智能定制',
+    icon: (active) => (
+      <svg viewBox="0 0 24 24" fill="none" stroke={active ? '#c8963e' : '#9c948c'} strokeWidth="2">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+        <path d="M12 6v6l4 2" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
     key: '/tourist/recommend',
-    label: '路线',
+    label: '胜境风物',
     icon: (active) => (
       <svg viewBox="0 0 24 24" fill="none" stroke={active ? '#c8963e' : '#9c948c'} strokeWidth="2">
         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/>

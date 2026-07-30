@@ -15,10 +15,19 @@ from chromadb.utils import embedding_functions
 KB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base")
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
 
-# 默认嵌入函数（使用开源sentence-transformers）
-default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="shibing624/text2vec-base-chinese"
-)
+# 默认嵌入函数（延迟加载，避免 sentence_transformers 兼容问题）
+_default_ef = None
+
+def _get_default_ef():
+    global _default_ef
+    if _default_ef is None:
+        try:
+            _default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="shibing624/text2vec-base-chinese"
+            )
+        except Exception as e:
+            print(f"[WARN] 嵌入函数初始化失败（RAG 向量化将不可用），错误: {e}")
+    return _default_ef
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=500,
@@ -45,10 +54,22 @@ def reset_collection(collection_name: str):
 def create_knowledge_base(collection_name: str):
     """创建或获取知识库集合"""
     client = get_chroma_client()
-    collection = client.get_or_create_collection(
-        name=collection_name,
-        embedding_function=default_ef,
-    )
+    ef = _get_default_ef()
+    if ef is None:
+        # 嵌入函数不可用时创建无向量集合
+        try:
+            collection = client.get_or_create_collection(name=collection_name)
+        except Exception:
+            try:
+                client.delete_collection(collection_name)
+            except Exception:
+                pass
+            collection = client.create_collection(name=collection_name)
+    else:
+        collection = client.get_or_create_collection(
+            name=collection_name,
+            embedding_function=ef,
+        )
     return collection
 
 
@@ -73,6 +94,8 @@ def add_documents(collection_name: str, documents: list[str], metadatas: list[di
 
 def search(collection_name: str, query: str, top_k: int = 5):
     """检索相关文档片段"""
+    if _get_default_ef() is None:
+        return []  # 嵌入函数不可用时跳过 RAG 检索
     collection = create_knowledge_base(collection_name)
     results = collection.query(query_texts=[query], n_results=top_k)
     docs = results.get("documents", [[]])[0]
@@ -141,4 +164,5 @@ def build_prompt(query: str, context_docs: list[dict], scenic_spot: str, history
 7. 回答中可适当引用知识库中的具体数据、历史典故、文化内涵等内容
 8. 回答要精简：普通景点讲解控制在{max_chars}字以内，通常 2-4 句话；只问时间、票价、路线等实用信息时控制在{brief_chars}字以内
 9. 优先直接回答游客当前问题，不展开无关景点；如果参考片段包含多个景点，只提与问题最相关的内容
+10. 如果游客询问游览路线，必须优先使用标题或内容中含“路线规划”的参考片段，保留参考片段中的景点顺序、时长和路线名称，不要自行增删站点；如果知识库没有游客指定人群或时长的专门路线，请明确说明“资料中没有专门的该类路线”，再推荐最接近的一条已有路线
 """
