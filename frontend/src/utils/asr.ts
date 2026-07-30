@@ -43,10 +43,6 @@ const SCENIC_REPLACEMENTS: Array<[string, string]> = [
   ['佛祖印', '佛足印'],
   ['佛祖意', '佛足印'],
   ['将解', '讲解'],
-  ['拰花湾', '拈花湾'],
-  ['粘花湾', '拈花湾'],
-  ['拈花禅意小镇', '拈花湾禅意小镇'],
-  ['拈花小镇', '拈花湾禅意小镇'],
 ]
 
 export function getSupportedAudioMimeType() {

@@ -22,7 +22,6 @@ interface XmovAvatarInstance {
   }) => Promise<void>
   speak: (ssml: string, isStart?: boolean, isEnd?: boolean, extra?: Record<string, unknown>) => void
   interactiveidle?: () => void
-  changeAvatarVisible?: (visible: boolean) => void
   setVolume?: (volume: number) => void
   destroy: (reason?: string) => Promise<unknown>
 }
@@ -131,7 +130,7 @@ export function useXmovAvatar(options: XmovAvatarOptions = {}) {
     if (instanceRef.current && status !== 'idle' && status !== 'error') return
     if (!config.configured) {
       setStatus('error')
-      setError('请先配置当前数字人的应用参数')
+      setError('请先配置 VITE_XMOV_APP_ID 和 VITE_XMOV_APP_SECRET')
       return
     }
 
@@ -178,8 +177,6 @@ export function useXmovAvatar(options: XmovAvatarOptions = {}) {
             setProgress(Math.max(0, Math.min(100, nextProgress)))
           },
         })
-        instance.changeAvatarVisible?.(true)
-        window.dispatchEvent(new Event('resize'))
         setStatus('live')
       } catch (err: any) {
         console.error('[XmovAvatar] init failed:', err)
