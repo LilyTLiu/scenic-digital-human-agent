@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
-from app.db.database import get_db, KnowledgeDoc, ChatRecord, ScenicSpot, Feedback, get_collection_name
+from app.db.database import get_db, KnowledgeDoc, ChatRecord, ScenicSpot, Feedback, VisitorReview, VisitorCheckin, get_collection_name
 from app.core.rag import add_documents, delete_documents
 
 router = APIRouter()
@@ -85,6 +85,7 @@ class DashboardData(BaseModel):
     daily_trend: list[dict] = []   # 最近7天每天对话量
     hourly_trend: list[dict] = []  # 今日每小时对话量
     total_sessions: int = 0
+    spot_breakdown: list[dict] = []  # 各景点对话量+知识条目数
 
 
 # ══════════════════════════════════════════════════════════════
@@ -382,6 +383,28 @@ async def get_dashboard(db: Session = Depends(get_db)):
         for r in rows
     ]
 
+    # 各景点对话量 + 知识覆盖
+    spot_chat_rows = (
+        db.query(ChatRecord.scenic_spot, func.count(ChatRecord.id).label("cnt"))
+        .filter(ChatRecord.scenic_spot != "", ChatRecord.scenic_spot.isnot(None))
+        .group_by(ChatRecord.scenic_spot)
+        .order_by(desc("cnt"))
+        .all()
+    )
+    spot_kb_rows = dict(
+        db.query(KnowledgeDoc.scenic_spot, func.count(KnowledgeDoc.id))
+        .filter(KnowledgeDoc.scenic_spot != "", KnowledgeDoc.scenic_spot.isnot(None))
+        .group_by(KnowledgeDoc.scenic_spot)
+        .all()
+    )
+    spot_breakdown = [
+        {
+            "spot_id": r.scenic_spot, "chat_count": r.cnt,
+            "kb_count": spot_kb_rows.get(r.scenic_spot, 0),
+        }
+        for r in spot_chat_rows
+    ]
+
     return DashboardData(
         total_chats=total_chats,
         total_knowledge=total_knowledge,
@@ -390,6 +413,7 @@ async def get_dashboard(db: Session = Depends(get_db)):
         daily_trend=daily_trend,
         hourly_trend=hourly_trend,
         total_sessions=total_sessions,
+        spot_breakdown=spot_breakdown,
     )
 
 
@@ -722,4 +746,205 @@ async def feedback_stats(db: Session = Depends(get_db)):
         "rate": round(likes / total * 100, 1) if total > 0 else 0,
         "recent": [{"id": f.id, "rating": f.rating, "question": f.question or "",
                      "created_at": f.created_at.isoformat() if f.created_at else ""} for f in recent],
+    }
+
+
+# ══════════════════════════════════════════════════════════════
+# 游客评价 (Visitor Reviews)
+# ══════════════════════════════════════════════════════════════
+
+class ReviewCreate(BaseModel):
+    spot_id: str
+    author: str = "灵山游客"
+    avatar: str = "😊"
+    rating: int = 5  # 1-5
+    text: str
+
+
+class ReviewOut(BaseModel):
+    id: int
+    spot_id: str
+    author: str
+    avatar: str
+    rating: int
+    text: str
+    time: str  # 日期字符串 YYYY-MM-DD
+
+
+class CheckinCreate(BaseModel):
+    spot_id: str
+    author: str = "灵山游客"
+    image: str = ""
+    caption: str
+
+
+class CheckinOut(BaseModel):
+    id: int
+    spot_id: str
+    author: str
+    image: str
+    caption: str
+    time: str
+
+
+@router.get("/reviews")
+async def list_reviews(
+    spot_id: str = Query(default=""),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """获取游客评价列表 — 可按景点筛选"""
+    q = db.query(VisitorReview).filter(VisitorReview.deleted == 0)
+    if spot_id:
+        q = q.filter(VisitorReview.spot_id == spot_id)
+    total = q.count()
+    rows = q.order_by(desc(VisitorReview.created_at)).offset((page - 1) * size).limit(size).all()
+    return {
+        "items": [
+            ReviewOut(
+                id=r.id, spot_id=r.spot_id, author=r.author, avatar=r.avatar,
+                rating=r.rating, text=r.text,
+                time=r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
+            ) for r in rows
+        ],
+        "total": total, "page": page, "size": size,
+    }
+
+
+@router.post("/reviews")
+async def create_review(data: ReviewCreate, db: Session = Depends(get_db)):
+    """提交新评价"""
+    if not data.text.strip():
+        raise HTTPException(status_code=400, detail="评价内容不能为空")
+    if not data.author.strip():
+        data.author = "灵山游客"
+    rev = VisitorReview(
+        spot_id=data.spot_id, author=data.author.strip(), avatar=data.avatar,
+        rating=max(1, min(5, data.rating)), text=data.text.strip(),
+        created_at=datetime.datetime.now(),
+    )
+    db.add(rev)
+    db.commit()
+    db.refresh(rev)
+    return {
+        "id": rev.id, "spot_id": rev.spot_id, "author": rev.author,
+        "avatar": rev.avatar, "rating": rev.rating, "text": rev.text,
+        "time": rev.created_at.strftime("%Y-%m-%d") if rev.created_at else "",
+    }
+
+
+@router.delete("/reviews/{review_id}")
+async def delete_review(review_id: int, db: Session = Depends(get_db)):
+    """删除评价（管理后台用）"""
+    rev = db.query(VisitorReview).filter(VisitorReview.id == review_id, VisitorReview.deleted == 0).first()
+    if not rev:
+        raise HTTPException(status_code=404, detail="评价不存在")
+    rev.deleted = 1
+    db.commit()
+    return {"deleted": review_id, "status": "soft-deleted"}
+
+
+# ══════════════════════════════════════════════════════════════
+# 游客打卡 (Visitor Checkins)
+# ══════════════════════════════════════════════════════════════
+
+@router.get("/checkins")
+async def list_checkins(
+    spot_id: str = Query(default=""),
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """获取游客打卡列表 — 可按景点筛选"""
+    q = db.query(VisitorCheckin).filter(VisitorCheckin.deleted == 0)
+    if spot_id:
+        q = q.filter(VisitorCheckin.spot_id == spot_id)
+    total = q.count()
+    rows = q.order_by(desc(VisitorCheckin.created_at)).offset((page - 1) * size).limit(size).all()
+    return {
+        "items": [
+            CheckinOut(
+                id=r.id, spot_id=r.spot_id, author=r.author, image=r.image,
+                caption=r.caption,
+                time=r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
+            ) for r in rows
+        ],
+        "total": total, "page": page, "size": size,
+    }
+
+
+@router.post("/checkins")
+async def create_checkin(data: CheckinCreate, db: Session = Depends(get_db)):
+    """提交新打卡"""
+    if not data.caption.strip():
+        raise HTTPException(status_code=400, detail="打卡内容不能为空")
+    if not data.author.strip():
+        data.author = "灵山游客"
+    ck = VisitorCheckin(
+        spot_id=data.spot_id, author=data.author.strip(), image=data.image,
+        caption=data.caption.strip(), created_at=datetime.datetime.now(),
+    )
+    db.add(ck)
+    db.commit()
+    db.refresh(ck)
+    return {
+        "id": ck.id, "spot_id": ck.spot_id, "author": ck.author,
+        "image": ck.image, "caption": ck.caption,
+        "time": ck.created_at.strftime("%Y-%m-%d") if ck.created_at else "",
+    }
+
+
+@router.delete("/checkins/{checkin_id}")
+async def delete_checkin(checkin_id: int, db: Session = Depends(get_db)):
+    """删除打卡（管理后台用）"""
+    ck = db.query(VisitorCheckin).filter(VisitorCheckin.id == checkin_id, VisitorCheckin.deleted == 0).first()
+    if not ck:
+        raise HTTPException(status_code=404, detail="打卡不存在")
+    ck.deleted = 1
+    db.commit()
+    return {"deleted": checkin_id, "status": "soft-deleted"}
+
+
+# ══════════════════════════════════════════════════════════════
+# 评价 & 打卡统计（数据大屏用）
+# ══════════════════════════════════════════════════════════════
+
+@router.get("/reviews/stats")
+async def review_stats(db: Session = Depends(get_db)):
+    """评价按景点聚合统计 — 各景点评价数 + 均分 + 总评价/打卡数"""
+    from sqlalchemy import func as f
+
+    # 各景点评价统计
+    spot_rows = (
+        db.query(
+            VisitorReview.spot_id,
+            f.count(VisitorReview.id).label("cnt"),
+            f.round(f.avg(VisitorReview.rating), 1).label("avg_rating"),
+        )
+        .filter(VisitorReview.deleted == 0)
+        .group_by(VisitorReview.spot_id)
+        .order_by(desc("cnt"))
+        .all()
+    )
+
+    spot_stats = [
+        {"spot_id": r.spot_id, "count": r.cnt, "avg_rating": float(r.avg_rating) if r.avg_rating else 0}
+        for r in spot_rows
+    ]
+
+    # 总计
+    total_reviews = sum(s["count"] for s in spot_stats)
+    total_checkins = db.query(VisitorCheckin).filter(VisitorCheckin.deleted == 0).count()
+    avg_all = (
+        db.query(f.round(f.avg(VisitorReview.rating), 1))
+        .filter(VisitorReview.deleted == 0)
+        .scalar()
+    )
+
+    return {
+        "spots": spot_stats,
+        "total_reviews": total_reviews,
+        "total_checkins": total_checkins,
+        "avg_rating_all": float(avg_all) if avg_all else 0,
     }
