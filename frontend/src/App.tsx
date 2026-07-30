@@ -12,6 +12,8 @@ import KnowledgeBase from './pages/admin/KnowledgeBase'
 import DigitalHuman from './pages/admin/DigitalHuman'
 import ReportPage from './pages/admin/ReportPage'
 import ScenicSpots from './pages/admin/ScenicSpots'
+import Reviews from './pages/admin/Reviews'
+import Checkins from './pages/admin/Checkins'
 
 export default function App() {
   return (
@@ -31,6 +33,8 @@ export default function App() {
           <Route path="knowledge" element={<KnowledgeBase />} />
           <Route path="scenic-spots" element={<ScenicSpots />} />
           <Route path="digital-human" element={<DigitalHuman />} />
+          <Route path="reviews" element={<Reviews />} />
+          <Route path="checkins" element={<Checkins />} />
           <Route path="reports" element={<ReportPage />} />
         </Route>
       </Routes>

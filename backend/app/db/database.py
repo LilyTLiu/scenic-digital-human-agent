@@ -98,6 +98,7 @@ class VisitorReview(Base):
     avatar = Column(String(256), default="")  # emoji 或头像 URL
     rating = Column(Integer, default=5)  # 1-5
     text = Column(Text, default="")
+    deleted = Column(Integer, default=0)  # 0=正常, 1=已删除（软删除）
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 
@@ -109,6 +110,7 @@ class VisitorCheckin(Base):
     author = Column(String(64), default="灵山游客")
     image = Column(String(512), default="")  # 图片 URL
     caption = Column(String(256), default="")
+    deleted = Column(Integer, default=0)  # 0=正常, 1=已删除（软删除）
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 

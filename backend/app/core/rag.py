@@ -15,10 +15,25 @@ from chromadb.utils import embedding_functions
 KB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base")
 CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
 
-# 默认嵌入函数（使用开源sentence-transformers）
-default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="shibing624/text2vec-base-chinese"
-)
+# 默认嵌入函数（延迟加载，避免 Python 3.14 + sentence_transformers 兼容问题）
+_default_ef = None
+
+
+def _get_default_ef():
+    global _default_ef
+    if _default_ef is None:
+        try:
+            from chromadb.utils import embedding_functions
+            _default_ef = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="shibing624/text2vec-base-chinese"
+            )
+        except Exception as e:
+            # 嵌入函数不可用时降级：使用无向量模式
+            _default_ef = None  # type: ignore
+            # 仅在首次失败时打印警告，后续静默
+            print(f"[WARN] 嵌入函数初始化失败（RAG 向量化将不可用），错误: {e}")
+    return _default_ef
+
 
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=500,
@@ -45,9 +60,10 @@ def reset_collection(collection_name: str):
 def create_knowledge_base(collection_name: str):
     """创建或获取知识库集合"""
     client = get_chroma_client()
+    ef = _get_default_ef()
     collection = client.get_or_create_collection(
         name=collection_name,
-        embedding_function=default_ef,
+        embedding_function=ef,
     )
     return collection
 

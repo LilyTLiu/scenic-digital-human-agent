@@ -116,6 +116,7 @@ export const reviewApi = {
   create: (data: { spot_id: string; author: string; avatar: string; rating: number; text: string }) =>
     api.post('/admin/reviews', data).then((r) => r.data),
   delete: (id: number) => api.delete(`/admin/reviews/${id}`).then((r) => r.data),
+  stats: () => api.get('/admin/reviews/stats').then((r) => r.data),
 }
 
 // 游客打卡
