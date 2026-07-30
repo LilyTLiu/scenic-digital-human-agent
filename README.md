@@ -9,7 +9,7 @@
 - 游客端首页、数字人问答、景区导览、路线推荐。
 - 数字人全屏界面与对话框全屏界面统一：问题和答案记录同步展示。
 - 支持文字输入、浏览器录音、后端中文 ASR、流式问答、对话框 Xiaoxiao 语音播报。
-- 数字人形象通过魔珐星云前端 SDK 接入，连接、结束、播报停止由前端控制。
+- 数字人形象通过魔珐星云前端 SDK 接入，支持 3 个导游形象切换，连接、结束、播报停止由前端控制。
 - RAG 知识库基于灵山公开资料包构建，回答会按提示词约束为简洁中文导游讲解。
 - 游客端布局分离：手机端保留移动布局和底部导航，电脑端启用侧边导航和宽屏布局。
 - 管理后台保留知识库、景区、数字人配置、反馈数据等功能。
@@ -41,10 +41,18 @@ backend/
                                # 景区专有名词纠错
   scripts/build_knowledge_base.py
                                # 从示范资料包构建 Chroma 知识库
+  scripts/rebuild_demo_knowledge.py
+                               # 从两个 Word 资料重建 SQLite + Chroma
+  scripts/sync_knowledge_chroma.py
+                               # 将 SQLite 知识文档同步到 Chroma
 
 frontend/
+  public/avatars/guide-*.png   # 未连接状态的 3 个本地静态导游形象
+  public/backgrounds/lingshan-chat-bg.png
+                               # AI 导游桌面端背景图
   src/hooks/useXmovAvatar.ts   # 魔珐星云 SDK 加载、连接、播报、停止
   src/hooks/useMediaQuery.ts   # 游客端布局模式判断
+  src/config/xmovAvatars.ts    # 3 个数字人形象配置与本地待机图绑定
   src/pages/tourist/Layout.tsx # mobile/desktop 外壳与导航
   src/pages/tourist/ChatPage.tsx
                                # 数字人/对话框统一问答界面
@@ -142,11 +150,11 @@ python main.py
 
 ## 3. 构建知识库
 
-知识库构建脚本会读取仓库中的 `示范景区公开资料包` 下两个 Word 文档，并写入 ChromaDB。
+推荐使用当前重建脚本，它会读取仓库中的 `示范景区公开资料包` 下两个 Word 文档，并同时写入 SQLite `knowledge_docs` 和 ChromaDB。SQLite 作为管理端可见的知识文档来源，ChromaDB 作为 RAG 向量检索索引。
 
 ```bash
 cd backend
-python scripts/build_knowledge_base.py
+python scripts/rebuild_demo_knowledge.py
 ```
 
 首次运行会下载 embedding 模型 `shibing624/text2vec-base-chinese`。如果模型已经下载到本机缓存，后续可在 `.env` 中设置：
@@ -156,6 +164,13 @@ HF_HUB_OFFLINE=1
 ```
 
 当前代码还包含景区专有名词纠错，例如“灵山警区”会纠正为“灵山景区”，“佛祖坛/青筒佛祖印”等误识别会纠正为“佛足坛/青铜佛足印”，再进入 RAG 检索。
+
+如果管理端知识库已经有内容，只需要重建 Chroma 索引，可运行：
+
+```bash
+cd backend
+python scripts/sync_knowledge_chroma.py
+```
 
 ## 4. 前端配置与启动
 
@@ -178,6 +193,10 @@ copy .env.example .env.local
 ```env
 VITE_XMOV_APP_ID=你的魔珐星云_App_ID
 VITE_XMOV_APP_SECRET=你的魔珐星云_App_Secret
+VITE_XMOV_AVATAR_2_ID=第二个数字人_App_ID
+VITE_XMOV_AVATAR_2_SECRET=第二个数字人_App_Secret
+VITE_XMOV_AVATAR_3_ID=第三个数字人_App_ID
+VITE_XMOV_AVATAR_3_SECRET=第三个数字人_App_Secret
 VITE_XMOV_GATEWAY_SERVER=https://nebula-agent.xingyun3d.com/user/v1/ttsa/session
 VITE_XMOV_SDK_URL=https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js
 ```
@@ -185,6 +204,7 @@ VITE_XMOV_SDK_URL=https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvat
 说明：
 
 - `VITE_XMOV_APP_ID` 和 `VITE_XMOV_APP_SECRET` 由魔珐星云数字人平台提供。
+- 第一个数字人默认为“导游小文”，第二、第三个分别为“导游小云”“导游小灵”。如果只配置第一个，界面仍可运行，未配置的形象会显示为未配置状态。
 - 这两个值会进入前端构建产物，适合开发和比赛演示。生产环境如果平台支持服务端签名或临时 token，建议改成服务端换取临时凭证。
 - 不要提交 `.env.local`。
 
@@ -214,7 +234,120 @@ npm run dev
    - 对话框“播报”按钮使用 Xiaoxiao 声音播放答案。
 8. 点击“对话框”查看完整问答记录，再点击“数字人”回到数字人全屏。
 
-## 6. 当前链路说明
+## 6. AI 导游界面功能与布局架构
+
+AI 导游入口为游客端 `AI导游` 页，核心文件是 `frontend/src/pages/tourist/ChatPage.tsx`。该页面不是“数字人”和“对话框”两套独立业务，而是一套问答状态驱动两种展示形态：
+
+- 统一消息状态：`messages` 保存游客问题、AI 回答、错误信息。
+- 统一会话状态：`sessionIdRef` 维持后端问答上下文。
+- 统一输入能力：文字输入、语音识别、快捷问答都调用同一个 `sendMessage()`。
+- 统一回答输出：DeepSeek + RAG 的流式回答先进入对话框记录；如果数字人已连接，再调用魔珐 SDK 播报。
+
+### 桌面端布局
+
+桌面端由 `useTouristLayoutMode()` 判断 `isDesktop` 后启用，主要样式集中在 `frontend/src/index.css` 的 `.app-shell--desktop ...` 命名空间下，避免影响手机端。
+
+桌面端 AI 导游采用左右双区布局：
+
+- 左侧问答区：标题“灵山胜境智能问答”、上方推荐问题、消息记录、输入框和输入框下方快捷问答。
+- 右侧数字人区：连接/结束按钮、状态提示、数字人画面、本地待机图、三形象切换按钮。
+- 背景图：`frontend/public/backgrounds/lingshan-chat-bg.png`。
+- 主面板位置：通过 `.tourist-chat-desktop-panel` 的 `transform: translateY(28px)` 微调垂直居中。
+- 主面板宽度：通过 `width: min(1560px, calc(100vw - 220px))` 保持左右留白。
+
+输入框下方快捷问答位于 `.tourist-chat-input-quick-row`，当前包括：
+
+- 购票相关：发送“请介绍一下灵山胜境的票价、购票方式和优惠政策。”
+- 演出活动相关：发送“请介绍一下灵山胜境的演出活动、开放时间和推荐观看安排。”
+- 服务设施相关：发送“请介绍一下灵山胜境的服务设施，比如停车、餐饮、卫生间和游客中心。”
+- 住宿相关：发送“请介绍一下灵山胜境及周边的住宿相关信息。”
+
+### 手机端布局
+
+手机端继续保持移动端优先布局：
+
+- 默认进入数字人全屏。
+- 顶部显示连接状态、连接/结束、对话框切换按钮。
+- 底部保留输入框和数字人选择。
+- 点击“对话框”进入完整聊天记录页，再点击“数字人”返回。
+- 未连接时同样使用本地静态形象图，不调用魔珐平台。
+
+### 三个数字人形象
+
+数字人配置文件：`frontend/src/config/xmovAvatars.ts`。
+
+当前形象：
+
+| 展示名 | 环境变量 | 未连接静态图 |
+| --- | --- | --- |
+| 导游小文 | `VITE_XMOV_APP_ID` / `VITE_XMOV_APP_SECRET` | `/avatars/guide-xiaowen.png` |
+| 导游小云 | `VITE_XMOV_AVATAR_2_ID` / `VITE_XMOV_AVATAR_2_SECRET` | `/avatars/guide-xiaoyun.png` |
+| 导游小灵 | `VITE_XMOV_AVATAR_3_ID` / `VITE_XMOV_AVATAR_3_SECRET` | `/avatars/guide-xiaoling.png` |
+
+注意：未连接状态只显示本地 PNG 静态图，不会加载或连接魔珐会话，因此不会产生平台计费。只有点击“连接数字人”后才会调用 `useXmovAvatar.connect()` 建立 SDK 会话。
+
+### 数字人 SDK 链路
+
+入口文件：
+
+- `frontend/src/hooks/useXmovAvatar.ts`
+- `frontend/src/pages/tourist/ChatPage.tsx`
+
+调用流程：
+
+1. 前端读取当前选择形象对应的 `VITE_XMOV_*` 环境变量。
+2. 用户点击“连接数字人”。
+3. `useXmovAvatar` 动态加载魔珐星云 Web SDK。
+4. 初始化 SDK 实例，绑定 `ChatPage` 中的数字人容器。
+5. 数字人连接完成后状态显示“数字人在线”。
+6. 每次后端流式回答完成后，如果数字人在线，调用 `xmov.speak(reply)` 播报。
+7. 点击“停止播报”调用 `interactiveidle()` 中断当前播报。
+8. 点击“结束对话”调用 `destroy()` 销毁当前平台会话。
+
+### 问答、RAG 与语音链路
+
+问答链路入口：
+
+- 前端：`frontend/src/services/api.ts`、`frontend/src/pages/tourist/ChatPage.tsx`
+- 后端：`backend/app/api/chat.py`
+
+流程：
+
+1. 前端通过 `/api/chat/stream` 发送问题。
+2. 后端执行景区词纠错与查询扩展。
+3. 后端同时结合向量检索和关键词补召回，解决“票价、路线、服务设施、拈花湾”等信息被漏召回的问题。
+4. `backend/app/core/rag.py` 构造导游提示词，要求回答精简、基于知识库、不能编造。
+5. DeepSeek 流式返回内容，前端实时写入消息记录。
+
+语音识别链路入口：
+
+- 前端：`frontend/src/utils/asr.ts`
+- 后端：`backend/app/core/asr.py`
+- 纠错：`backend/app/core/query_normalization.py`
+
+流程：
+
+1. 浏览器 `MediaRecorder` 录音。
+2. 上传音频到 `/api/voice/asr`。
+3. 后端 faster-whisper 使用中文识别。
+4. 通过初始提示词、热词和专名纠错优化“灵山胜境、佛足坛、青铜佛足印、九龙灌浴”等识别。
+5. 识别文本回填并直接进入 `sendMessage()`。
+
+对话框语音播报链路入口：
+
+- 后端：`backend/app/core/tts.py`
+- 前端：`ChatPage.tsx`
+
+流程：
+
+1. 对话框中点击“播报”。
+2. 前端请求 `/api/voice/tts`，默认 voice 为 `zh-CN-XiaoxiaoNeural`。
+3. 后端使用 `edge-tts` 合成音频。
+4. 前端 `Audio` 播放。
+
+这条 TTS 链路与魔珐平台数字人内置声音相互独立。
+
+## 7. 当前链路说明
 
 ### 魔珐星云数字人
 
@@ -284,7 +417,7 @@ npm run dev
 
 注意：对话框播报声音和魔珐星云数字人平台内置声音是两条链路。当前只切换对话框播报为 Xiaoxiao，不修改魔珐平台中数字人自身的音源。
 
-## 7. 桌面端与手机端布局
+## 8. 桌面端与手机端布局
 
 游客端不是复制两套功能，而是同一套功能逻辑、两套布局模式：
 
@@ -313,7 +446,7 @@ npm run dev
 - 需要差异化布局时，通过 `useTouristLayoutMode()` 判断当前模式。
 - 桌面样式写入 `.app-shell--desktop ...` 命名空间，避免影响手机端。
 
-## 8. 常用命令
+## 9. 常用命令
 
 后端：
 
@@ -348,10 +481,17 @@ python -m compileall app
 
 ```bash
 cd backend
-python scripts/build_knowledge_base.py
+python scripts/rebuild_demo_knowledge.py
 ```
 
-## 9. 局域网访问与麦克风
+仅同步 SQLite 中已有知识到 Chroma：
+
+```bash
+cd backend
+python scripts/sync_knowledge_chroma.py
+```
+
+## 10. 局域网访问与麦克风
 
 前端 Vite 已配置 `host: 0.0.0.0`。同一局域网设备可以访问：
 
@@ -367,7 +507,7 @@ python -c "import socket; s=socket.socket(socket.AF_INET,socket.SOCK_DGRAM); s.c
 
 麦克风录音需要 HTTPS 或 localhost 安全上下文。手机访问局域网地址时，需要浏览器允许麦克风权限。
 
-## 10. 常见问题
+## 11. 常见问题
 
 ### 后端启动提示 8000 端口占用
 
@@ -430,7 +570,7 @@ ASR_HOTWORDS=无锡 灵山胜境 灵山大佛 佛足坛 青铜佛足印 九龙�
 - 已重启后端，让 `.env` 生效。
 - 浏览器是否允许自动播放，必要时先点击页面任意位置。
 
-## 11. 安全说明
+## 12. 安全说明
 
 - 不要提交 `backend/.env`、`frontend/.env.local`。
 - 不要在 README、截图、日志中公开 DeepSeek API Key、魔珐星云 App ID/App Secret。
