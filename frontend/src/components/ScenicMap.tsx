@@ -21,6 +21,7 @@ interface Props {
   activeRoute: RouteDef | null
   activeSpot: string | null
   onSpotClick: (spot: ScenicSpot) => void
+  onInfoWindowClose?: () => void
   focusSpotId?: string | null
 }
 
@@ -84,37 +85,55 @@ async function fetchWalkingPath(
 /** 生成 InfoWindow 弹窗 HTML */
 function createInfoWindowContent(spot: ScenicSpot): string {
   return `
-    <div style="width: 300px; border-radius: 14px; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #fff; box-shadow: 0 8px 30px rgba(0,0,0,0.15);">
-      <div style="height: 180px; overflow: hidden; background: #f0ebe0; position: relative;">
-        <img src="${spot.image}" alt="${spot.name}" style="width: 100%; height: 100%; object-fit: cover; display: block;" onerror="this.style.display='none'">
-        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.5)); padding: 20px 14px 10px;">
-          <span style="font-size: 15px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">${spot.icon} ${spot.name}</span>
+    <div style="width: 340px; max-height: 560px; border-radius: 14px; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; background: #fff; box-shadow: 0 8px 30px rgba(0,0,0,0.15);">
+      <div style="height: 220px; overflow: hidden; background: #f8f4ec; position: relative;">
+        <img src="${spot.image}" alt="${spot.name}" style="width: 100%; height: 100%; object-fit: cover; object-position: center; display: block;" onerror="this.style.display='none'">
+        <div style="position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(transparent, rgba(0,0,0,0.52)); padding: 18px 14px 9px;">
+          <span style="font-size: 16px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">${spot.icon} ${spot.name}</span>
         </div>
       </div>
-      <div style="padding: 14px;">
-        <div style="font-size: 12px; color: #9c948c; margin-bottom: 10px;">${spot.subtitle}</div>
-        ${spot.practicalInfo ? `<div style="font-size: 12px; color: #5c5348; background: #f8f6f2; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; line-height: 1.5;"><span style="font-weight: 600;">🕐</span> ${spot.practicalInfo}</div>` : ''}
-        <p style="font-size: 13px; color: #5c5348; line-height: 1.7; margin: 0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;">${spot.description}</p>
+      <div style="padding: 14px; max-height: 370px; overflow-y: auto;">
+        <div style="font-size: 13px; color: #8c7c6e; margin-bottom: 9px; font-weight: 600;">${spot.subtitle}</div>
+        ${spot.practicalInfo ? `<div style="font-size: 13px; color: #5c5348; background: #f8f6f2; padding: 8px 10px; border-radius: 8px; margin-bottom: 9px; line-height: 1.55;"><span style="font-weight: 700;">开放提示：</span> ${spot.practicalInfo}</div>` : ''}
+        <p style="font-size: 13px; color: #4f463d; line-height: 1.65; margin: 0 0 1px;">${spot.description}</p>
       </div>
     </div>
   `
 }
 
-const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, onSpotClick, focusSpotId }) => {
+const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, onSpotClick, onInfoWindowClose, focusSpotId }) => {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])
   const polylinesRef = useRef<any[]>([])
   const routeRequestIdRef = useRef(0)
   const infoWindowRef = useRef<any>(null)
+  const suppressCloseNotifyRef = useRef(false)
 
   /** 关闭当前弹窗 */
-  const closeInfoWindow = useCallback(() => {
+  const closeInfoWindow = useCallback((notify = true) => {
     if (infoWindowRef.current) {
+      suppressCloseNotifyRef.current = !notify
       infoWindowRef.current.close()
       infoWindowRef.current = null
+      if (!notify) {
+        window.setTimeout(() => {
+          suppressCloseNotifyRef.current = false
+        }, 120)
+      }
     }
   }, [])
+
+  const bindInfoWindowClose = useCallback((info: any) => {
+    info.on?.('close', () => {
+      infoWindowRef.current = null
+      if (suppressCloseNotifyRef.current) {
+        suppressCloseNotifyRef.current = false
+        return
+      }
+      onInfoWindowClose?.()
+    })
+  }, [onInfoWindowClose])
 
   const createMarkerContent = useCallback((spot: ScenicSpot, isActive: boolean, routeOrder: number | null, routeColor: string | null) => {
     const div = document.createElement('div')
@@ -146,7 +165,7 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
 
     // 名称标签
     const label = document.createElement('span')
-    label.style.cssText = `font-size:11px;font-weight:${(isActive || routeOrder) ? 600 : 500};color:${(routeOrder && activeRoute) ? (routeColor || spot.color) : (isActive ? spot.color : '#5c5348')};background:${(routeOrder && activeRoute) ? `${routeColor}20` : 'rgba(255,255,255,0.92)'};padding:2px 8px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);max-width:80px;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(4px)`
+    label.style.cssText = `font-size:13px;font-weight:${(isActive || routeOrder) ? 700 : 600};color:${(routeOrder && activeRoute) ? (routeColor || spot.color) : (isActive ? spot.color : '#5c5348')};background:${(routeOrder && activeRoute) ? `${routeColor}20` : 'rgba(255,255,255,0.92)'};padding:3px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.08);max-width:96px;overflow:hidden;text-overflow:ellipsis;backdrop-filter:blur(4px)`
     label.textContent = spot.name
     div.appendChild(label)
 
@@ -175,7 +194,7 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
       })
 
       // 点击地图空白处关闭 InfoWindow
-      map.on('click', () => { closeInfoWindow() })
+      map.on('click', () => { closeInfoWindow(true) })
 
       // 3D 控制罗盘
       const controlBar = new AMap.ControlBar({
@@ -217,7 +236,7 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
 
       // 点击标记 → 打开 InfoWindow + 回调父组件
       marker.on('click', () => {
-        closeInfoWindow()
+        closeInfoWindow(false)
 
         // ----- 打开 InfoWindow（高德自动移动确保完全可见） -----
         const info = new AMap.InfoWindow({
@@ -227,6 +246,7 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
           isCustom: false,
           autoMove: true,
         })
+        bindInfoWindowClose(info)
         info.open(map, coord)
         infoWindowRef.current = info
 
@@ -243,7 +263,7 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
       map.setFitView(null, false, [80, 80, 80, 80])
     }
 
-  }, [spots, activeRoute, activeSpot, createMarkerContent, onSpotClick, closeInfoWindow])
+  }, [spots, activeRoute, activeSpot, createMarkerContent, onSpotClick, closeInfoWindow, bindInfoWindowClose])
 
   // 更新路线
   useEffect(() => {
@@ -329,7 +349,7 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
     if (!spot) return
 
     // 关闭上一个弹窗
-    closeInfoWindow()
+    closeInfoWindow(false)
 
     // 平移地图到景点
     map.setCenter(coord, true)
@@ -343,9 +363,10 @@ const ScenicMap: React.FC<Props> = ({ spots, routes, activeRoute, activeSpot, on
       isCustom: false,
       autoMove: true,
     })
+    bindInfoWindowClose(info)
     info.open(map, coord)
     infoWindowRef.current = info
-  }, [focusSpotId, spots, closeInfoWindow])
+  }, [focusSpotId, spots, closeInfoWindow, bindInfoWindowClose])
 
   if (!AMAP_CONFIG.enabled) {
     return (

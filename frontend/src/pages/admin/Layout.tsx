@@ -43,6 +43,13 @@ const IconCamera = () => (
     <circle cx="12" cy="13" r="4"/>
   </svg>
 )
+const IconBox = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+    <path d="m3.3 7 8.7 5 8.7-5" />
+    <path d="M12 22V12" />
+  </svg>
+)
 
 const menuItems = [
   { key: '/admin', icon: <IconDashboard />, label: '数据大屏' },
@@ -51,6 +58,7 @@ const menuItems = [
   { key: '/admin/digital-human', icon: <IconUsers />, label: '数字人' },
   { key: '/admin/reviews', icon: <IconStar />, label: '游客评价' },
   { key: '/admin/checkins', icon: <IconCamera />, label: '游客打卡' },
+  { key: '/admin/lost-found', icon: <IconBox />, label: '失物招领' },
   { key: '/admin/reports', icon: <IconChart />, label: '反馈报告' },
 ]
 
@@ -61,6 +69,7 @@ const pageTitles: Record<string, string> = {
   '/admin/digital-human': '数字人管理',
   '/admin/reviews': '游客评价管理',
   '/admin/checkins': '游客打卡管理',
+  '/admin/lost-found': '失物招领管理',
   '/admin/reports': '反馈报告',
 }
 

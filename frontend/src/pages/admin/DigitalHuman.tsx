@@ -1,162 +1,103 @@
-import { useState, useEffect } from 'react'
-import { adminApi } from '../../services/api'
-import { PERSONAS } from '../../config/personas'
-
-interface PersonaInfo {
-  id: string
-  name: string
-  role: string
-  style: string
-  voice: string
-  emoji: string
-  color: string
-}
+import { useEffect, useState } from 'react'
+import {
+  getXmovAvatarProfile,
+  XMOV_AVATAR_PROFILES,
+  XMOV_AVATAR_STORAGE_KEY,
+} from '../../config/xmovAvatars'
 
 export default function DigitalHuman() {
-  const [personas, setPersonas] = useState<PersonaInfo[]>([])
-  const [activePersona, setActivePersona] = useState('')
-  const [switching, setSwitching] = useState('')
-  const [loading, setLoading] = useState(true)
-
-  const fetchData = async () => {
+  const [activeKey, setActiveKey] = useState(() => {
     try {
-      const res = await adminApi.getDigitalHumans()
-      setPersonas(res.humans || [])
-      setActivePersona(res.active || '')
+      return getXmovAvatarProfile(localStorage.getItem(XMOV_AVATAR_STORAGE_KEY)).key
     } catch {
-      // 静默失败，显示空列表
-    } finally {
-      setLoading(false)
+      return XMOV_AVATAR_PROFILES[0].key
     }
-  }
+  })
 
   useEffect(() => {
-    fetchData()
-  }, [])
-
-  const handleActivate = async (id: string) => {
-    setSwitching(id)
     try {
-      const res = await adminApi.updateDigitalHuman(id, {})
-      if (res.success) {
-        setActivePersona(id)
-      }
-    } catch {
-      // 切换失败
-    } finally {
-      setSwitching('')
-    }
-  }
-
-  /* ── Loading ── */
-  if (loading) {
-    return (
-      <div className="admin-loading">
-        <div className="admin-spinner" />
-        <span>加载数字人数据中…</span>
-      </div>
-    )
-  }
+      localStorage.setItem(XMOV_AVATAR_STORAGE_KEY, activeKey)
+    } catch { /* ignore */ }
+  }, [activeKey])
 
   return (
     <div>
       <h2 className="admin-page-title">数字人形象管理</h2>
       <p className="admin-page-subtitle">
-        管理灵山导游数字人形象。切换后，游客端3D形象将实时更新。当前语音统一使用妙音的人声。
+        管理游客端「云端伴游」使用的魔珐星云数字人形象。当前页面与游客端共用同一套配置和本机选择状态。
       </p>
 
-      {/* ── Persona Card Grid ── */}
-      {personas.length === 0 ? (
-        <div className="admin-empty" style={{ marginBottom: 24 }}>
-          暂无数字人数据，请确认后端已启动
-        </div>
-      ) : (
-        <div className="admin-card-grid">
-          {personas.map((p) => {
-            const isActive = p.id === activePersona
-            const isSwitching = switching === p.id
-            const personaCfg = PERSONAS[p.id as keyof typeof PERSONAS]
+      <div className="admin-card-grid">
+        {XMOV_AVATAR_PROFILES.map((profile) => {
+          const isActive = profile.key === activeKey
+          const configured = Boolean(profile.appId && profile.appSecret)
+          const appIdText = profile.appId
+            ? `${profile.appId.slice(0, 6)}...${profile.appId.slice(-6)}`
+            : '未配置'
 
-            return (
-              <div
-                key={p.id}
-                className={`admin-persona-card${isActive ? ' admin-persona-card--active' : ''}`}
-                style={isActive ? { borderColor: p.color } : undefined}
-              >
-                {/* Active badge */}
-                {isActive && (
-                  <span
-                    className="admin-tag admin-tag--gold"
-                    style={{ position: 'absolute', top: 12, right: 12 }}
-                  >
-                    当前
-                  </span>
-                )}
-
-                {/* Avatar */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                  {personaCfg?.image ? (
-                    <img
-                      src={personaCfg.image}
-                      alt={p.name}
-                      style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: '50%',
-                        objectFit: 'cover',
-                        objectPosition: 'center top',
-                      }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 56, lineHeight: 1 }}>{p.emoji}</span>
-                  )}
-                </div>
-
-                {/* Name & Role */}
-                <div
-                  style={{
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: p.color,
-                    marginBottom: 4,
-                    textAlign: 'center',
-                  }}
+          return (
+            <div
+              key={profile.key}
+              className={`admin-persona-card${isActive ? ' admin-persona-card--active' : ''}`}
+              style={isActive ? { borderColor: '#c8963e' } : undefined}
+            >
+              {isActive && (
+                <span
+                  className="admin-tag admin-tag--gold"
+                  style={{ position: 'absolute', top: 12, right: 12 }}
                 >
-                  {p.name}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--admin-text-secondary)', marginBottom: 2, textAlign: 'center' }}>
-                  {p.role}
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--admin-text-secondary)', marginBottom: 12, textAlign: 'center' }}>
-                  {p.style}
-                </div>
+                  当前
+                </span>
+              )}
 
-                {/* Voice tag */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                  <span className="admin-tag admin-tag--teal">
-                    语音: {p.voice.split('-').pop()}
-                  </span>
-                </div>
-
-                {/* Activate button */}
-                <button
-                  className={`admin-btn ${isActive ? 'admin-btn--secondary' : 'admin-btn--primary'}`}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                <img
+                  src={profile.standbyImage}
+                  alt={profile.name}
                   style={{
-                    width: '100%',
-                    ...(isActive ? { borderColor: p.color, color: p.color } : {}),
+                    width: 86,
+                    height: 112,
+                    borderRadius: 10,
+                    objectFit: 'contain',
+                    background: 'rgba(200,150,62,0.06)',
+                    border: '1px solid rgba(200,150,62,0.16)',
                   }}
-                  disabled={isActive || isSwitching}
-                  onClick={() => handleActivate(p.id)}
-                >
-                  {isActive ? '当前形象' : isSwitching ? '切换中…' : '启用此形象'}
-                </button>
+                />
               </div>
-            )
-          })}
-        </div>
-      )}
 
-      {/* ── Info card ── */}
+              <div
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: '#7d5b26',
+                  marginBottom: 8,
+                  textAlign: 'center',
+                }}
+              >
+                {profile.name}
+              </div>
+
+              <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
+                <span className={`admin-tag ${configured ? 'admin-tag--teal' : 'admin-tag--gray'}`}>
+                  {configured ? '魔珐星云已配置' : '魔珐星云未配置'}
+                </span>
+                <span className="admin-tag admin-tag--gold">App ID: {appIdText}</span>
+                <span className="admin-tag admin-tag--teal">语音播报: zh-CN-XiaoxiaoNeural</span>
+              </div>
+
+              <button
+                className={`admin-btn ${isActive ? 'admin-btn--secondary' : 'admin-btn--primary'}`}
+                style={{ width: '100%' }}
+                disabled={isActive}
+                onClick={() => setActiveKey(profile.key)}
+              >
+                {isActive ? '当前游客端默认形象' : '设为游客端默认形象'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
       <div className="admin-panel" style={{ marginTop: 24 }}>
         <div className="admin-panel-header">
           <div className="admin-panel-title">配置说明</div>
@@ -166,16 +107,20 @@ export default function DigitalHuman() {
           style={{ fontSize: 13, color: 'var(--admin-text-secondary)', lineHeight: 2 }}
         >
           <p>
-            <strong>外观 / 服装：</strong>
-            由LAM 3D模型资源包(ZIP)决定，各角色有专属形象。切换即刻生效，游客端iframe自动更新。
+            <strong>游客端联动：</strong>
+            此页面使用的形象、静态待机图、App ID 和 Secret 均来自游客端同一份
+            <code style={{ margin: '0 4px' }}>xmovAvatars</code>
+            配置，因此不会再出现管理端与游客端数字人列表不一致。
           </p>
           <p>
-            <strong>声音：</strong>
-            由OAC服务端配置决定，当前所有角色共用同一TTS语音。如需为不同角色匹配不同声音，需为每个角色单独创建OAC配置文件并重启服务。
+            <strong>密钥配置：</strong>
+            请在 <code>frontend/.env.local</code> 中维护三组
+            <code>VITE_XMOV_*</code> 配置；管理端只展示脱敏后的 App ID，不显示 Secret。
           </p>
           <p>
-            <strong>角色属性：</strong>
-            名称、风格描述、emoji等元数据在前端 persona.ts 中定义，后端 admin.py PERSONA_ZIP_MAP 维护角色ID到ZIP文件的映射。
+            <strong>语音说明：</strong>
+            魔珐星云数字人自己的口型/声源仍由平台会话决定；对话框文字播报继续使用
+            <code>zh-CN-XiaoxiaoNeural</code>。
           </p>
         </div>
       </div>

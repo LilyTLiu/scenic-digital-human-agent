@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { chatApi, voiceApi, adminApi } from '../../services/api'
 import { useXmovAvatar } from '../../hooks/useXmovAvatar'
 import { getSupportedAudioMimeType, normalizeScenicQuestion } from '../../utils/asr'
@@ -88,7 +88,48 @@ function hideAvatarTextOverlays(container: HTMLElement) {
 
 export default function ChatPage() {
   const [searchParams] = useSearchParams()
-  const initialQuestion = searchParams.get('q') || ''
+  const location = useLocation()
+  const searchKey = searchParams.toString()
+  const initialRequest = useMemo(() => {
+    const stateAutoAsk = (location.state as { autoAsk?: { question?: string; nonce?: string } } | null)?.autoAsk
+    if (stateAutoAsk?.question?.trim()) {
+      return {
+        question: stateAutoAsk.question,
+        key: `state:${stateAutoAsk.nonce || stateAutoAsk.question}:${stateAutoAsk.question}`,
+      }
+    }
+
+    const urlQuestion = searchParams.get('q') || ''
+    const urlNonce = searchParams.get('nonce') || searchParams.get('auto') || ''
+    if (urlQuestion.trim()) {
+      return {
+        question: urlQuestion,
+        key: `url:${urlNonce || urlQuestion}:${urlQuestion}`,
+      }
+    }
+    try {
+      const raw = sessionStorage.getItem('lingshan_pending_chat_question')
+        || localStorage.getItem('lingshan_pending_chat_question')
+        || ''
+      if (!raw) return { question: '', key: '' }
+      try {
+        const parsed = JSON.parse(raw) as { question?: string; nonce?: string }
+        const question = parsed.question || ''
+        return {
+          question,
+          key: `session:${parsed.nonce || question}:${question}`,
+        }
+      } catch {
+        return {
+          question: raw,
+          key: `session:${raw}`,
+        }
+      }
+    } catch {
+      return { question: '', key: '' }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKey, location.key])
   const [selectedAvatarKey, setSelectedAvatarKey] = useState(() => {
     try {
       return getXmovAvatarProfile(localStorage.getItem(XMOV_AVATAR_STORAGE_KEY)).key
@@ -119,7 +160,7 @@ export default function ChatPage() {
   const streamAbortRef = useRef<AbortController | null>(null)
   const messagesRef = useRef(messages)
   const sessionIdRef = useRef(getSessionId())
-  const initialSentRef = useRef(false)
+  const initialSentRef = useRef<string | null>(null)
   const playIdRef = useRef(0)
 
   messagesRef.current = messages
@@ -285,11 +326,23 @@ export default function ChatPage() {
   }, [avatarConnected, avatarSpeaking, loading, stopAudio, stopAvatarSpeaking, xmov])
 
   useEffect(() => {
-    if (!initialQuestion || initialSentRef.current) return
-    initialSentRef.current = true
-    const timer = window.setTimeout(() => { void sendMessage(initialQuestion) }, 300)
-    return () => window.clearTimeout(timer)
-  }, [initialQuestion, sendMessage])
+    const question = initialRequest.question.trim()
+    if (!question || loading || initialSentRef.current === initialRequest.key) return
+    const consumedStorageKey = `lingshan_auto_ask_consumed:${initialRequest.key}`
+    try {
+      if (sessionStorage.getItem(consumedStorageKey)) return
+      sessionStorage.setItem(consumedStorageKey, '1')
+    } catch { /* ignore */ }
+    initialSentRef.current = initialRequest.key
+    window.setTimeout(() => {
+      void sendMessage(question).finally(() => {
+        try {
+          sessionStorage.removeItem('lingshan_pending_chat_question')
+          localStorage.removeItem('lingshan_pending_chat_question')
+        } catch { /* ignore */ }
+      })
+    }, 450)
+  }, [initialRequest, loading, sendMessage])
 
   const startListen = async () => {
     if (!navigator.mediaDevices?.getUserMedia || inputDisabled) {
@@ -620,13 +673,12 @@ export default function ChatPage() {
 
   if (isDesktop) {
     return (
-      <div className="tourist-chat-shell tourist-chat-desktop" style={{ display: 'flex', flexDirection: 'column' }}>
-        {/* 顶栏：统一国风标题 */}
-        <header className="tour-page-header" style={{ margin: '0 20px', padding: '10px 14px 4px', flexShrink: 0 }}>
-          <h1 className="tour-title">灵山胜境 · 云端伴游</h1>
-          <p className="tour-subtitle">有问必答，如影随形 — 您的专属 AI 导游在线</p>
+      <div className="tourist-chat-shell tourist-chat-desktop">
+        <header className="tour-page-header">
+          <h1 className="tour-title">灵山胜境·云端伴游</h1>
+          <p className="tour-subtitle">有问必答，入影随行——您的专属AI导游</p>
         </header>
-        <div className="tourist-chat-desktop-panel" style={{ flex: 1, minHeight: 0 }}>
+        <div className="tourist-chat-desktop-panel">
           <section className="tourist-chat-desktop-dialog" aria-label="数字人问答">
             <header className="tourist-chat-desktop-header">
               <div className="tourist-chat-desktop-tools">
@@ -664,7 +716,6 @@ export default function ChatPage() {
           </section>
 
           <aside className="tourist-chat-desktop-avatar" aria-label="数字人">
-            <div className="guofeng-title" style={{ fontSize: 13, color: '#4a3c31', marginBottom: 8, padding: '0 4px', letterSpacing: '0.05em' }}>AI导游 · 智能问答</div>
             <div className="tourist-chat-avatar-actions">
               {xmov.configured && !avatarConnected && !avatarBusy && (
                 <button type="button" onClick={() => void connectAvatar()}>

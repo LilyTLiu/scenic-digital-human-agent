@@ -1865,10 +1865,10 @@ body::after {
   }
 
   .app-shell--desktop .tourist-home {
-    width: min(1280px, calc(100vw - 180px));
+    width: min(1480px, calc(100vw - 128px));
     min-height: 100vh;
     margin: 0 auto;
-    padding: 32px !important;
+    padding: 28px !important;
     display: grid;
     grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
     grid-template-rows: auto auto 1fr;
@@ -1994,6 +1994,14 @@ body::after {
 
   .app-shell--desktop .tour-page-header .tour-subtitle {
     font-size: 14px !important;
+  }
+
+  .app-shell--desktop .tourist-tour-header {
+    padding: 30px 14px 4px !important;
+  }
+
+  .app-shell--desktop .tourist-chat-desktop > .tour-page-header {
+    padding: 0 2px !important;
   }
 
   /* Zen Hero — 桌面 75% 与卡片对齐 */
@@ -2212,6 +2220,31 @@ body::after {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .app-shell--desktop .tourist-chat-desktop-panel {
+    width: min(1040px, calc(100vw - 132px));
+    height: clamp(620px, 82vh, 740px);
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 330px);
+    transform: translateY(18px);
+  }
+
+  .app-shell--desktop .tourist-chat-desktop-panel:hover {
+    transform: translateY(18px);
+  }
+
+  .app-shell--desktop .tourist-chat-avatar-stage {
+    width: min(320px, 100%);
+    min-height: 380px;
+  }
+
+  .app-shell--desktop .tourist-chat-avatar-canvas {
+    transform: translate(-50%, -50%) scale(0.58);
+  }
+
+  .app-shell--desktop .tourist-chat-standby-avatar {
+    width: 320px;
+    height: 470px;
+  }
+
   .app-shell--desktop .tourist-tour-cards {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     width: 82%;
@@ -2379,14 +2412,22 @@ body::after {
   .app-shell--desktop .tourist-chat-desktop {
     position: relative;
     height: 100vh !important;
-    padding: 12px 24px 72px;
-    display: grid;
-    place-items: center;
+    padding: 42px 24px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
     color: var(--charcoal);
     background:
       linear-gradient(90deg, rgba(255, 252, 247, 0.70), rgba(255, 252, 247, 0.42)),
       url('/backgrounds/lingshan-chat-bg.png') center / cover no-repeat;
     overflow: hidden;
+  }
+
+  .app-shell--desktop .tourist-chat-desktop > .tour-page-header {
+    width: min(1480px, calc(100vw - 168px));
+    margin: 0 0 10px;
+    padding: 0 2px;
   }
 
   .app-shell--desktop .tourist-chat-desktop::before {
@@ -2400,12 +2441,12 @@ body::after {
   .app-shell--desktop .tourist-chat-desktop-panel {
     position: relative;
     z-index: 1;
-    width: min(1560px, calc(100vw - 268px));
-    height: clamp(660px, 80vh, 780px);
+    width: min(1560px, calc(100vw - 188px));
+    height: clamp(660px, 78vh, 780px);
     margin: 0;
-    transform: translateY(28px);
+    transform: translateY(0);
     display: grid;
-    grid-template-columns: minmax(620px, 1fr) minmax(360px, 440px);
+    grid-template-columns: minmax(680px, 1fr) minmax(390px, 440px);
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.78);
     border-radius: 8px;
@@ -2413,11 +2454,11 @@ body::after {
     box-shadow: 0 24px 70px rgba(61, 54, 48, 0.12);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease;
+    transition: box-shadow 0.4s ease;
   }
 
   .app-shell--desktop .tourist-chat-desktop-panel:hover {
-    transform: translateY(-4px);
+    transform: translateY(0);
     box-shadow: 0 32px 90px rgba(61, 54, 48, 0.16);
   }
 
@@ -2453,18 +2494,22 @@ body::after {
     z-index: 1;
     min-width: 0;
     min-height: 0;
-    padding: 26px 32px 24px;
+    padding: 22px 32px 24px;
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
   }
 
   .app-shell--desktop .tourist-chat-desktop-header {
-    width: 100% !important;
+    position: absolute;
+    top: 22px;
+    right: 32px;
+    z-index: 3;
+    width: auto !important;
     margin: 0 !important;
     padding: 0 !important;
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 20px;
     color: var(--charcoal) !important;
     background: transparent !important;
@@ -2543,7 +2588,7 @@ body::after {
 
   .app-shell--desktop .tourist-chat-quick-row {
     min-width: 0;
-    margin: 30px 0 22px;
+    margin: 0 160px 14px 0;
     display: flex;
     flex-wrap: wrap;
     gap: 9px;
@@ -2564,7 +2609,7 @@ body::after {
     width: 100%;
     min-height: 0;
     margin: 0;
-    padding: 8px 0 18px !important;
+    padding: 4px 0 18px !important;
   }
 
   .app-shell--desktop .tourist-chat-desktop .tourist-chat-messages > div > div {
@@ -2753,17 +2798,21 @@ body::after {
   }
 
   .app-shell--desktop .tourist-chat-avatar-selector {
-    max-width: 360px;
+    max-width: 410px;
+  }
+
+  .app-shell--desktop .tourist-chat-avatar-options {
+    flex-wrap: nowrap;
   }
 
   .app-shell--desktop .tourist-chat-desktop {
-    padding: 20px;
+    padding: 42px 20px 36px;
   }
 
   .app-shell--desktop .tourist-chat-desktop-panel {
-    width: min(1040px, calc(100vw - 164px));
-    height: clamp(620px, 82vh, 740px);
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+    width: min(1480px, calc(100vw - 152px));
+    height: clamp(660px, 78vh, 780px);
+    grid-template-columns: minmax(640px, 1fr) minmax(380px, 420px);
   }
 
   .app-shell--desktop .tourist-chat-desktop-dialog {
@@ -2771,23 +2820,23 @@ body::after {
   }
 
   .app-shell--desktop .tourist-chat-avatar-stage {
-    width: min(320px, 100%);
-    min-height: 380px;
+    width: min(360px, 100%);
+    min-height: 420px;
     margin-bottom: 92px;
   }
 
   .app-shell--desktop .tourist-chat-desktop-panel {
-    width: min(1040px, calc(100vw - 180px));
-    transform: translateY(22px);
+    width: min(1480px, calc(100vw - 168px));
+    transform: translateY(0);
   }
 
   .app-shell--desktop .tourist-chat-avatar-canvas {
-    transform: translate(-50%, -50%) scale(0.58);
+    transform: translate(-50%, -50%) scale(0.62);
   }
 
   .app-shell--desktop .tourist-chat-standby-avatar {
-    width: 320px;
-    height: 470px;
+    width: 350px;
+    height: 500px;
   }
 
 
@@ -2795,5 +2844,133 @@ body::after {
 @keyframes homeScrollRight {
   0% { transform: translateX(100%); }
   100% { transform: translateX(-100%); }
+}
+
+/* ================= 灵山胜境 · 开屏入场动画（乘云而入）================= */
+.zen-splash-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  cursor: pointer;
+  overflow: hidden;
+  background: #fbf9f5;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding-right: 10%;
+  box-sizing: border-box;
+}
+
+.zen-splash-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transform: scale(1.02) translateX(10px);
+  transition:
+    transform 1.5s cubic-bezier(0.33, 1, 0.68, 1),
+    opacity 1.2s cubic-bezier(0.33, 1, 0.68, 1);
+  z-index: 1;
+}
+
+.zen-splash-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 24px;
+  font-family: 'Source Han Serif SC', 'Noto Serif SC', 'SimSun', serif;
+}
+
+.zen-title-vertical {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-size: 56px;
+  font-weight: 600;
+  color: #4a3c31;
+  letter-spacing: 12px;
+  line-height: 1.2;
+  text-shadow: 0 2px 10px rgba(251, 249, 245, 0.8);
+}
+
+.zen-subtitle-vertical {
+  margin: 0;
+  padding-top: 15px;
+  font-size: 16px;
+  color: #8c7c6e;
+  letter-spacing: 6px;
+  writing-mode: vertical-rl;
+}
+
+.zen-seal-btn {
+  margin-top: 20px;
+  width: 42px;
+  height: 42px;
+  border: 2px solid #c5a06b;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(251, 249, 245, 0.4);
+  backdrop-filter: blur(4px);
+  animation: sealBreathe 2.5s ease-in-out infinite;
+}
+
+.seal-text {
+  font-size: 12px;
+  color: #c5a06b;
+  font-weight: bold;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+@keyframes sealBreathe {
+  0%, 100% {
+    transform: scale(0.96);
+    border-color: rgba(197, 160, 107, 0.5);
+  }
+  50% {
+    transform: scale(1.04);
+    border-color: rgba(197, 160, 107, 1);
+    box-shadow: 0 0 12px rgba(197, 160, 107, 0.4);
+  }
+}
+
+.zen-splash-container.exit-active .zen-splash-bg {
+  transform: scale(1.08) translateX(-20px);
+  opacity: 0;
+}
+
+.zen-splash-container.exit-active .zen-splash-content {
+  transform: scale(0.95);
+  opacity: 0;
+  transition: transform 1s ease, opacity 1s ease;
+}
+
+.zen-splash-container.exit-active {
+  pointer-events: none;
+  background: #fbf9f5;
+  opacity: 0;
+  transition: background 1.2s ease, opacity 1.2s ease;
+}
+
+@media (max-width: 768px) {
+  .zen-splash-container {
+    justify-content: center;
+    padding-right: 0;
+  }
+
+  .zen-splash-content {
+    transform: scale(0.82);
+  }
+
+  .zen-title-vertical {
+    font-size: 44px;
+  }
 }
 

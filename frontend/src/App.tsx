@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider } from './contexts/UserContext'
+import SplashScreen from './components/SplashScreen'
 import TouristLayout from './pages/tourist/Layout'
 import AdminLayout from './pages/admin/Layout'
 import HomePage from './pages/tourist/HomePage'
@@ -15,10 +16,12 @@ import ReportPage from './pages/admin/ReportPage'
 import ScenicSpots from './pages/admin/ScenicSpots'
 import Reviews from './pages/admin/Reviews'
 import Checkins from './pages/admin/Checkins'
+import LostFound from './pages/admin/LostFound'
 
 export default function App() {
   return (
     <UserProvider>
+      <SplashScreen />
       <Routes>
         <Route path="/" element={<Navigate to="/tourist" replace />} />
         <Route path="/tourist" element={<TouristLayout />}>
@@ -37,6 +40,7 @@ export default function App() {
           <Route path="digital-human" element={<DigitalHuman />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="checkins" element={<Checkins />} />
+          <Route path="lost-found" element={<LostFound />} />
           <Route path="reports" element={<ReportPage />} />
         </Route>
       </Routes>
