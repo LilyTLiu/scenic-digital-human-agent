@@ -2790,3 +2790,10 @@ body::after {
     height: 470px;
   }
 
+
+/* 首页通知滚动 — 从右向左 */
+@keyframes homeScrollRight {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
