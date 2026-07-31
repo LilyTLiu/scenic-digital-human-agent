@@ -286,7 +286,7 @@ export default function TourPage() {
     <div className="page-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
       {/* 顶栏：统一国风标题 */}
-      <header className="tour-page-header" style={{ margin: '6px 10px 0', flexShrink: 0, padding: '8px 14px' }}>
+      <header className="tour-page-header" style={{ margin: '6px 30px 0', flexShrink: 0, padding: '8px 14px' }}>
         <h1 className="tour-title">灵山胜境 · 游园导览</h1>
         <p className="tour-subtitle">一图在手，步移景异 — 点击标记聆听讲解</p>
       </header>
@@ -297,7 +297,7 @@ export default function TourPage() {
         {/* 🛠️ 关键修改点2：左侧容器设置相同的高宽控制以稳固弹性空间 */}
         <div style={{ width: '65%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, boxSizing: 'border-box' }}>
           {/* 通知栏 + 全景（同行） */}
-          <div style={{ margin: '8px 6px 0 10px', display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div style={{ margin: '8px 8px 0 30px', display: 'flex', gap: 6, flexShrink: 0 }}>
             {(() => {
               const nearest = performances[0]
               return (
@@ -341,12 +341,12 @@ export default function TourPage() {
             </div>
           </div>
           {/* 地图区域 */}
-          <div className="tourist-tour-map" style={{ flex: 1, margin: '6px 6px 6px 10px', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minHeight: 0, minWidth: 0 }}>
+          <div className="tourist-tour-map" style={{ flex: 1, margin: '6px 8px 6px 30px', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minHeight: 0, minWidth: 0 }}>
             <ScenicMap spots={SCENIC_SPOTS} routes={ROUTES} activeRoute={activeRoute} activeSpot={activeSpot} onSpotClick={(spot: any) => handleSpotClick(spot)} focusSpotId={focusSpotId} />
           </div>
 
           {/* 温馨提示 + 跳转按钮 */}
-          <div style={{ margin: '0 6px 10px 10px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+          <div style={{ margin: '0 8px 20px 30px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
             <div className="glass-warm" style={{ borderRadius: 12, padding: '8px 12px', border: '1px solid rgba(200,150,62,0.12)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: 10, color: '#8a7a6a', lineHeight: 1.6 }}>
                 <span style={{ fontWeight: 600, color: '#c8963e' }}>💡 出行提示：</span>
@@ -380,7 +380,7 @@ export default function TourPage() {
         <div style={{
           width: '35%',
           height: '100%',
-          padding: '0 12px 10px 6px',
+          padding: '0 30px 20px 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
