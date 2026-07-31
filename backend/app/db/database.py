@@ -3,10 +3,18 @@ from sqlalchemy import Column, String, Text, Integer, Float, DateTime, create_en
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 import datetime
+import shutil
 
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "..", ".."))
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "data.db")
+BUNDLED_DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data.db"))
+if (
+    os.path.abspath(DB_PATH) != BUNDLED_DB_PATH
+    and not os.path.exists(DB_PATH)
+    and os.path.exists(BUNDLED_DB_PATH)
+):
+    shutil.copy2(BUNDLED_DB_PATH, DB_PATH)
 engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
