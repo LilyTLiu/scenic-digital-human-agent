@@ -29,7 +29,7 @@ const SCENIC_SPOTS: ScenicSpot[] = [
     mapX: 50, mapY: 90,
     image: '/spots/linshandazhaobi.png',
     description: '灵山大照壁位于景区入口广场，长39.8米，高7.2米，被誉为"华夏第一壁"。照壁正面镌刻着原中国佛教协会会长赵朴初先生题写的"灵山胜境"四个鎏金大字，笔力遒劲、气势恢宏。照壁背面刻有"诸恶莫作，众善奉行"的佛教偈语，提醒世人存善心、行善事。这里是游览灵山的第一站，几乎所有游客都会在此合影留念，寓意"祈福纳祥，平安吉祥"。照壁两侧种植着百年古樟，枝繁叶茂，与照壁共同构成了一幅庄严而宁静的画面。',
-    practicalInfo: '全天开放，位于景区入口广场，建议游览时长5-10分钟。',
+    practicalInfo: '全天开放，建议游览时长5-10分钟。',
   },
   {
     id: 'wumingqiao',
@@ -40,7 +40,7 @@ const SCENIC_SPOTS: ScenicSpot[] = [
     mapX: 50, mapY: 82,
     image: '/spots/wumingqiao.png',
     description: '五明桥横跨景区入口的香水河，桥名取自佛教"五明"之学——声明、工巧明、医方明、因明、内明，分别代表语言、技艺、医学、逻辑和佛学五种智慧。过桥寓意"以智慧渡彼岸"。桥北端是佛足坛，坛上雕刻着一对巨大的佛足印，足心刻有法轮图案，象征佛陀的足迹遍及四方、普度众生。佛足坛两侧设有十二座石灯幢，夜幕降临时灯火璀璨，更添庄严气氛。',
-    practicalInfo: '全天开放，位于景区入口过桥即达，建议游览时长10分钟。',
+    practicalInfo: '全天开放，建议游览时长10分钟。',
   },
   {
     id: 'jiulongguanyu',
@@ -72,7 +72,7 @@ const SCENIC_SPOTS: ScenicSpot[] = [
     color: '#c8963e',
     mapX: 50, mapY: 35,
     image: '/spots/linshandafo.jpg',
-    description: '灵山大佛高88米（佛身79米+莲花瓣9米），连同基座总高达101.5米，是目前世界上最高的露天青铜释迦牟尼立像。大佛由725吨青铜铸成，采用2000块铸铜面板精密拼接，焊缝总长达30余公里。佛祖面相慈眉善目，右手施"无畏印"（表示拔除众生痛苦），左手施"与愿印"（表示给予众生快乐）。登216级台阶可近距离瞻仰佛容，俯瞰太湖万顷碧波和马山半岛的壮丽景色。大佛底部设有佛教文化博物馆，展示了灵山的历史渊源和建造历程。民间有"抱佛脚"的说法——抱住大佛的脚趾祈福，据说非常灵验。',
+    description: '灵山大佛高88米（佛身79米+莲花瓣9米），连同基座总高达101.5米，是目前世界上最高的露天青铜释迦牟尼立像。大佛由725吨青铜铸成，采用2000块铸铜面板精密拼接，焊缝总长达30余公里。佛祖面相慈眉善目，右手施"无畏印"（表示拔除众生痛苦），左手施"与愿印"（表示给予众生快乐）。登216级台阶可近距离瞻仰佛容，俯瞰太湖万顷碧波和马山半岛的壮丽景色。大佛底部设有佛教文化博物馆，展示了灵山的历史渊源 and 建造历程。民间有"抱佛脚"的说法——抱住大佛的脚趾祈福，据说非常灵验。',
     practicalInfo: '开放时间8:00-17:00，登顶需爬216级台阶（有电梯可供老人使用），建议游览时长40-60分钟。',
   },
   {
@@ -266,7 +266,9 @@ export default function TourPage() {
   const handleSpotClick = useCallback((spot: ScenicSpot) => {
     stopAudio()
     setActiveSpot(spot.id)
-    setShowDetail(true)
+    setShowDetail(false)
+    setFocusSpotId(null)
+    window.setTimeout(() => setFocusSpotId(spot.id), 0)
     setEmotion(detectEmotion(spot.description))
     const text = spot.description + (spot.practicalInfo ? ' ' + spot.practicalInfo : '')
     speakText(text, 'zh-CN-XiaoxiaoNeural')
@@ -286,18 +288,18 @@ export default function TourPage() {
     <div className="page-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
       {/* 顶栏：统一国风标题 */}
-      <header className="tour-page-header" style={{ margin: '6px 30px 0', flexShrink: 0, padding: '8px 14px' }}>
+      <header className="tour-page-header tourist-tour-header" style={{ margin: '0 clamp(18px, 6vw, 120px) 0', flexShrink: 0 }}>
         <h1 className="tour-title">灵山胜境 · 游园导览</h1>
         <p className="tour-subtitle">一图在手，步移景异 — 点击标记聆听讲解</p>
       </header>
 
       {/* 🛠️ 关键修改点1：锁定舞台视口高度，禁止外层全局滚动 */}
-      <div style={{ display: 'flex', height: 'calc(100vh - 90px)', overflow: 'hidden', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', height: 'calc(100vh - 138px)', overflow: 'hidden', boxSizing: 'border-box', padding: '0 clamp(18px, 6vw, 120px) 18px', gap: 18 }}>
         
         {/* 🛠️ 关键修改点2：左侧容器设置相同的高宽控制以稳固弹性空间 */}
-        <div style={{ width: '65%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, boxSizing: 'border-box' }}>
+        <div style={{ width: '62%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, boxSizing: 'border-box' }}>
           {/* 通知栏 + 全景（同行） */}
-          <div style={{ margin: '8px 8px 0 30px', display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div style={{ margin: '0', display: 'flex', gap: 6, flexShrink: 0 }}>
             {(() => {
               const nearest = performances[0]
               return (
@@ -305,7 +307,7 @@ export default function TourPage() {
                   <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', position: 'relative' }}>
                     <div style={{
                       display: 'inline-block', whiteSpace: 'nowrap',
-                      fontSize: 12, color: '#4a3c31', lineHeight: 1.5,
+                      fontSize: 14, color: '#4a3c31', lineHeight: 1.5,
                       animation: 'scrollLeft 22s linear infinite',
                       paddingLeft: '100%',
                     }}>
@@ -322,7 +324,7 @@ export default function TourPage() {
                     }}
                     style={{
                       flexShrink: 0, padding: '4px 14px', borderRadius: 14,
-                      border: 'none', cursor: 'pointer', fontSize: 12,
+                      border: 'none', cursor: 'pointer', fontSize: 13,
                       background: 'linear-gradient(135deg, #c5a06b, #a88754)',
                       color: '#fff', fontWeight: 600, whiteSpace: 'nowrap',
                     }}
@@ -335,40 +337,49 @@ export default function TourPage() {
             <div
               className="glass-warm"
               onClick={() => navigate('/tourist/tour')}
-              style={{ padding: '5px 12px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 12, color: '#4a3c31', flexShrink: 0 }}
+              style={{ padding: '5px 12px', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: 14, color: '#4a3c31', flexShrink: 0 }}
             >
               📍 全景
             </div>
           </div>
           {/* 地图区域 */}
-          <div className="tourist-tour-map" style={{ flex: 1, margin: '6px 8px 6px 30px', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minHeight: 0, minWidth: 0 }}>
-            <ScenicMap spots={SCENIC_SPOTS} routes={ROUTES} activeRoute={activeRoute} activeSpot={activeSpot} onSpotClick={(spot: any) => handleSpotClick(spot)} focusSpotId={focusSpotId} />
+          <div className="tourist-tour-map" style={{ flex: 1, margin: '5px 0', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minHeight: 0, minWidth: 0 }}>
+            <ScenicMap spots={SCENIC_SPOTS} routes={ROUTES} activeRoute={activeRoute} activeSpot={activeSpot} onSpotClick={(spot: any) => handleSpotClick(spot)} onInfoWindowClose={stopAudio} focusSpotId={focusSpotId} />
           </div>
 
           {/* 温馨提示 + 跳转按钮 */}
-          <div style={{ margin: '0 8px 30px 30px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-            <div className="glass-warm" style={{ borderRadius: 12, padding: '8px 12px', border: '1px solid rgba(200,150,62,0.12)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: 10, color: '#8a7a6a', lineHeight: 1.6 }}>
-                <span style={{ fontWeight: 600, color: '#c8963e' }}>💡 出行提示：</span>
-                {weather?.weather.includes('雨') ? '今日有雨，建议携带雨具，部分室外演出可能调整。' : weather?.weather.includes('晴') ? '今日晴好，注意防晒补水，建议携带遮阳帽和饮用水。' : '天气适宜出行。'}
-                <br />
-                <span style={{ fontWeight: 600, color: '#c8963e' }}>🎭 九龙灌浴：</span>平日 10:00 / 11:30 / 13:30 / 15:00
-                <br />
-                <span style={{ fontWeight: 600, color: '#c8963e' }}>⏱ 路线说明：</span>按正常步行与短暂停留估算，节假日可适当预留排队时间。
+          <div style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+            <div className="glass-warm" style={{ borderRadius: 12, padding: '9px 14px', border: '1px solid rgba(200,150,62,0.18)', background: 'rgba(255,252,247,0.88)', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 8px 22px rgba(61,54,48,0.08)' }}>
+              <div style={{ display: 'grid', gap: 3, fontSize: 13, color: '#4f463d', lineHeight: 1.55, fontWeight: 700 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '18px 72px minmax(0, 1fr)', alignItems: 'baseline', columnGap: 4 }}>
+                  <span style={{ textAlign: 'center' }}>💡</span>
+                  <span style={{ color: '#b57c20', fontWeight: 800 }}>出行提示：</span>
+                  <span>{weather?.weather.includes('雨') ? '今日有雨，建议携带雨具，部分室外演出可能调整。' : weather?.weather.includes('晴') ? '今日晴好，注意防晒补水，建议携带遮阳帽和饮用水。' : '天气适宜出行。'}</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '18px 72px minmax(0, 1fr)', alignItems: 'baseline', columnGap: 4 }}>
+                  <span style={{ textAlign: 'center' }}>🎭</span>
+                  <span style={{ color: '#b57c20', fontWeight: 800 }}>九龙灌浴：</span>
+                  <span>平日 10:00 / 11:30 / 13:30 / 15:00</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '18px 72px minmax(0, 1fr)', alignItems: 'baseline', columnGap: 4 }}>
+                  <span style={{ textAlign: 'center' }}>⏱</span>
+                  <span style={{ color: '#b57c20', fontWeight: 800 }}>路线说明：</span>
+                  <span>按正常步行与短暂停留估算，节假日可适当预留排队时间。</span>
+                </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={() => navigate('/tourist/recommend')} style={{
                 flex: 1, padding: '6px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
                 background: 'linear-gradient(135deg, #c8963e, #a0722a)', color: '#fff',
-                fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
               }}>
                 🏛️ 查看景点
               </button>
               <button onClick={() => navigate('/tourist/chat')} style={{
                 flex: 1, padding: '6px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
                 background: '#f5f1eb', color: '#5c5348',
-                fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
               }}>
                 💬 问AI导游
               </button>
@@ -378,9 +389,9 @@ export default function TourPage() {
 
         {/* 🛠️ 关键修改点3：右侧面板 */}
         <div style={{
-          width: '35%',
+          width: '38%',
           height: '100%',
-          padding: '0 30px 30px 8px',
+          padding: 0,
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
@@ -401,19 +412,19 @@ export default function TourPage() {
               {weather ? (weather.weather.includes('晴') ? '☀️' : weather.weather.includes('云') ? '⛅' : weather.weather.includes('阴') ? '☁️' : weather.weather.includes('雨') ? '🌧️' : '🌤️') : '🌤️'}
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#3d3630' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#3d3630' }}>
                 {weather ? `${weather.temp}°C ${weather.weather}` : '加载天气...'}
               </div>
-              <div style={{ fontSize: 10, color: '#9c948c', marginTop: 1 }}>
+              <div style={{ fontSize: 12, color: '#8c8176', marginTop: 1 }}>
                 无锡灵山 · {weather ? `风速 ${weather.wind} km/h` : ''}
               </div>
             </div>
-            <div style={{ marginLeft: 'auto', fontSize: 10, color: '#b8a898', textAlign: 'right' }}>实时更新</div>
+            <div style={{ marginLeft: 'auto', fontSize: 12, color: '#9f8f7f', textAlign: 'right' }}>实时更新</div>
           </div>
 
           {/* 胜境风物标题 + 筛选 */}
           <div style={{ flexShrink: 0 }}>
-            <div className="guofeng-title" style={{ fontSize: 16, padding: '4px 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="guofeng-title" style={{ fontSize: 18, padding: '4px 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
               路线推荐
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 8 }}>
@@ -422,7 +433,7 @@ export default function TourPage() {
                 return categories.map(cat => (
                   <button key={cat} onClick={() => setRouteFilter(cat)} style={{
                     padding: '3px 12px', borderRadius: 14, border: 'none', cursor: 'pointer',
-                    fontSize: 11, fontWeight: routeFilter === cat ? 600 : 400,
+                    fontSize: 13, fontWeight: routeFilter === cat ? 700 : 500,
                     background: routeFilter === cat ? '#c8963e' : 'rgba(200,150,62,0.10)',
                     color: routeFilter === cat ? '#fff' : '#4a3c31', transition: 'all 0.2s',
                   }}>
@@ -436,7 +447,7 @@ export default function TourPage() {
           {/* 滚动区：智能定制 + 路线卡片 */}
           <div className="custom-scrollbar" style={{
             flex: 1, overflowY: 'auto', display: 'flex',
-            flexDirection: 'column', gap: 10, paddingRight: '4px'
+            flexDirection: 'column', gap: 10, paddingRight: '4px', paddingBottom: 22
           }}>
             {/* 智能定制入口卡 — 始终置顶 */}
             <div className="card" style={{ flexShrink: 0, cursor: 'pointer', background: 'linear-gradient(135deg, rgba(197,160,107,0.08), rgba(200,150,62,0.04))', border: '1.5px dashed rgba(197,160,107,0.4)' }}
@@ -466,7 +477,7 @@ export default function TourPage() {
               const isActive = activeRoute?.title === route.title
               return (
                 <div key={route.title + ri} className="card" style={{ flexShrink: 0, border: isActive ? '2px solid ' + route.color : '1px solid rgba(200,150,62,0.10)' }}>
-                  <div onClick={() => navigate(navPath)} style={{ padding: '12px 14px', cursor: 'pointer', background: isActive ? route.color + '06' : 'transparent' }}>
+                  <div onClick={() => navigate(isActive ? '/tourist/tour' : navPath)} style={{ padding: '12px 14px', cursor: 'pointer', background: isActive ? route.color + '06' : 'transparent' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {route.image ? (
                         <div style={{ width: 48, height: 48, borderRadius: 10, overflow: 'hidden', flexShrink: 0, border: '1px solid ' + route.color + '25' }}>
@@ -476,15 +487,15 @@ export default function TourPage() {
                         <span style={{ fontSize: 22, flexShrink: 0 }}>{route.icon}</span>
                       )}
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: route.color }}>{route.title}</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: route.color }}>{route.title}</div>
                         <div style={{ display: 'flex', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, color: '#9c948c' }}>  {route.duration}</span>
-                          <span style={{ fontSize: 10, color: '#9c948c' }}>  {route.distance}</span>
-                          <span style={{ fontSize: 10, padding: '0 5px', borderRadius: 4, background: route.color + '12', color: route.color, fontWeight: 500 }}>  {route.intensity}</span>
-                          <span style={{ fontSize: 10, padding: '0 5px', borderRadius: 4, background: '#f0ebe0', color: '#8a7a6a' }}>  {route.crowd}</span>
+                          <span style={{ fontSize: 12, color: '#8c8176' }}>{route.duration}</span>
+                          <span style={{ fontSize: 12, color: '#8c8176' }}>{route.distance}</span>
+                          <span style={{ fontSize: 12, padding: '0 6px', borderRadius: 4, background: route.color + '12', color: route.color, fontWeight: 600 }}>{route.intensity}</span>
+                          <span style={{ fontSize: 12, padding: '0 6px', borderRadius: 4, background: '#f0ebe0', color: '#75695f' }}>{route.crowd}</span>
                         </div>
                         <div style={{ display: 'flex', gap: 3, marginTop: 4, flexWrap: 'wrap' }}>
-                          {route.tags.map(t => <span key={t} style={{ fontSize: 9, padding: '1px 6px', borderRadius: 6, background: route.color + '0E', color: route.color }}>#{t}</span>)}
+                          {route.tags.map(t => <span key={t} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 6, background: route.color + '0E', color: route.color }}>#{t}</span>)}
                         </div>
                       </div>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9c948c" strokeWidth="2" style={{ transform: isActive ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }}>
@@ -496,10 +507,10 @@ export default function TourPage() {
                   {isActive && (
                     <div style={{ borderTop: '1px solid ' + route.color + '12', padding: '0 14px 14px' }}>
                       <div style={{ display: 'flex', gap: 6, margin: '10px 0', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 10, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}> 距离 {route.distance}</span>
-                        <span style={{ fontSize: 10, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}> 游览 {route.duration}</span>
-                        <span style={{ fontSize: 10, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}> 强度 {route.intensity}</span>
-                        <span style={{ fontSize: 10, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}> 客流 {route.crowd}</span>
+                        <span style={{ fontSize: 12, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}>距离 {route.distance}</span>
+                        <span style={{ fontSize: 12, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}>游览 {route.duration}</span>
+                        <span style={{ fontSize: 12, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}>强度 {route.intensity}</span>
+                        <span style={{ fontSize: 12, color: '#5c5348', background: '#f5f1eb', padding: '3px 8px', borderRadius: 6 }}>客流 {route.crowd}</span>
                       </div>
 
                       <div style={{ position: 'relative', paddingLeft: 20, marginBottom: 12 }}>
@@ -511,14 +522,14 @@ export default function TourPage() {
                           const isActiveSpot = activeSpot === spot.id
                           return (
                             <div key={stopId} onClick={() => handleSpotClick(spot)} style={{ position: 'relative', marginBottom: 8, cursor: 'pointer', padding: '8px 10px', borderRadius: 10, background: isActiveSpot ? spot.color + '08' : '#faf8f5', border: isActiveSpot ? '1px solid ' + spot.color + '25' : '1px solid transparent' }}>
-                              <div style={{ position: 'absolute', left: -16, top: 10, width: 16, height: 16, borderRadius: '50%', background: route.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, border: '2px solid #fff' }}>{i + 1}</div>
+                              <div style={{ position: 'absolute', left: -17, top: 10, width: 18, height: 18, borderRadius: '50%', background: route.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, border: '2px solid #fff' }}>{i + 1}</div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <span style={{ fontSize: 16 }}>{spot.icon}</span>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: isActiveSpot ? spot.color : '#3d3630' }}>{spot.name}</div>
-                                  <div style={{ fontSize: 10, color: '#9c948c' }}>{spot.subtitle.length > 22 ? spot.subtitle.slice(0, 22) + '...' : spot.subtitle}</div>
+                                  <div style={{ fontSize: 14, fontWeight: 700, color: isActiveSpot ? spot.color : '#3d3630' }}>{spot.name}</div>
+                                  <div style={{ fontSize: 12, color: '#8c8176' }}>{spot.subtitle.length > 22 ? spot.subtitle.slice(0, 22) + '...' : spot.subtitle}</div>
                                 </div>
-                                <span style={{ fontSize: 9, color: '#b8a898', background: '#f5f1eb', padding: '2px 6px', borderRadius: 6 }}> {spotTime}min</span>
+                                <span style={{ fontSize: 11, color: '#9f8f7f', background: '#f5f1eb', padding: '2px 6px', borderRadius: 6 }}>{spotTime}min</span>
                               </div>
                             </div>
                           )
@@ -526,8 +537,8 @@ export default function TourPage() {
                       </div>
 
                       <div style={{ padding: '10px 12px', borderRadius: 10, background: 'linear-gradient(135deg, ' + route.color + '06, ' + route.color + '02)', border: '1px solid ' + route.color + '12' }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: route.color, marginBottom: 4 }}> 游览贴士</div>
-                        <div style={{ fontSize: 10, color: '#5c5348', lineHeight: 1.6 }}>{route.tips}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: route.color, marginBottom: 4 }}>游览贴士</div>
+                        <div style={{ fontSize: 12, color: '#5c5348', lineHeight: 1.65 }}>{route.tips}</div>
                       </div>
                     </div>
                   )}
@@ -536,25 +547,6 @@ export default function TourPage() {
             })}
           </div>
 
-          {/* 固定底部的讲解详情浮窗 */}
-          {showDetail && selectedSpot && (
-            <div className="glass-warm" style={{ borderRadius: 14, border: '1px solid ' + selectedSpot.color + '25', overflow: 'hidden', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'linear-gradient(135deg, ' + selectedSpot.color + '12, ' + selectedSpot.color + '08)' }}>
-                <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
-                  {persona.image && <img src={persona.image} alt={persona.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: selectedSpot.color }}>{selectedSpot.icon} {selectedSpot.name}</div>
-                  <div style={{ fontSize: 11, color: '#9c948c' }}>{speaking ? ' 正在讲解' : selectedSpot.subtitle}</div>
-                </div>
-                <button onClick={handleReplay} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: '#f5f1eb', color: selectedSpot.color, fontSize: 12, cursor: 'pointer' }}>🔊</button>
-                <button onClick={handleCloseDetail} style={{ width: 28, height: 28, borderRadius: '50%', border: 'none', background: '#f5f1eb', color: '#9c948c', fontSize: 14, cursor: 'pointer' }}>✕</button>
-              </div>
-              <div style={{ padding: '8px 14px 12px' }}>
-                <p style={{ fontSize: 12, lineHeight: 1.6, color: '#3d3630', margin: 0 }}>{selectedSpot.description.slice(0, 150)}...</p>
-              </div>
-            </div>
-          )}
         </div>
 
       </div>

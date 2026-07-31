@@ -128,6 +128,42 @@ export const checkinApi = {
   delete: (id: number) => api.delete(`/admin/checkins/${id}`).then((r) => r.data),
 }
 
+// 失物招领
+export const lostFoundApi = {
+  list: (page = 1, size = 50, status = '') =>
+    api.get('/admin/lost-found', { params: { page, size, status } }).then((r) => r.data),
+  create: (data: {
+    item_name: string
+    item_type: string
+    location?: string
+    description?: string
+    contact?: string
+  }) => api.post('/admin/lost-found', data).then((r) => r.data),
+  update: (
+    id: number,
+    data: {
+      item_name?: string
+      item_type?: string
+      location?: string
+      description?: string
+      contact?: string
+      status?: string
+    },
+  ) => api.put(`/admin/lost-found/${id}`, data).then((r) => r.data),
+  delete: (id: number) => api.delete(`/admin/lost-found/${id}`).then((r) => r.data),
+}
+
+// 投诉建议
+export const suggestionApi = {
+  list: (page = 1, size = 50, status = '') =>
+    api.get('/admin/suggestions', { params: { page, size, status } }).then((r) => r.data),
+  create: (data: { category: string; name?: string; contact?: string; content: string }) =>
+    api.post('/admin/suggestions', data).then((r) => r.data),
+  update: (id: number, data: { status?: string }) =>
+    api.put(`/admin/suggestions/${id}`, data).then((r) => r.data),
+  delete: (id: number) => api.delete(`/admin/suggestions/${id}`).then((r) => r.data),
+}
+
 // 用户系统
 export const userApi = {
   sendCode: (phone: string) => api.post('/user/send-code', { phone }).then((r) => r.data),

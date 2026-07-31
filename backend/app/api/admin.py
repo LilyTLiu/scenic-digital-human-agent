@@ -10,7 +10,18 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, func
 
-from app.db.database import get_db, KnowledgeDoc, ChatRecord, ScenicSpot, Feedback, VisitorReview, VisitorCheckin, get_collection_name
+from app.db.database import (
+    get_db,
+    KnowledgeDoc,
+    ChatRecord,
+    ScenicSpot,
+    Feedback,
+    VisitorReview,
+    VisitorCheckin,
+    LostFoundItem,
+    ComplaintSuggestion,
+    get_collection_name,
+)
 from app.core.rag import add_documents, delete_documents
 
 router = APIRouter()
@@ -424,17 +435,20 @@ async def get_dashboard(db: Session = Depends(get_db)):
 @router.get("/digital-humans")
 async def list_digital_humans():
     return {
+        "active": "default",
         "humans": [
-            {"id": "xiaoling", "name": "小灵", "voice": "zh-CN-XiaoxiaoNeural", "gender": "female"},
-            {"id": "huijue", "name": "慧觉", "voice": "zh-CN-YunxiNeural", "gender": "male"},
-            {"id": "miaoyin", "name": "妙音", "voice": "zh-CN-XiaoyiNeural", "gender": "female"},
-        ]
+            {"id": "default", "name": "导游小文", "voice": "zh-CN-XiaoxiaoNeural", "provider": "xmov"},
+            {"id": "guide-yun", "name": "导游小云", "voice": "zh-CN-XiaoxiaoNeural", "provider": "xmov"},
+            {"id": "guide-ling", "name": "导游小灵", "voice": "zh-CN-XiaoxiaoNeural", "provider": "xmov"},
+        ],
     }
 
 
 @router.put("/digital-humans/{human_id}")
 async def update_digital_human(human_id: str, config: dict):
-    return {"id": human_id, **config}
+    if human_id not in {"default", "guide-yun", "guide-ling"}:
+        raise HTTPException(status_code=404, detail="数字人不存在")
+    return {"success": True, "active": human_id, "id": human_id, **config}
 
 
 class SwitchPersonaRequest(BaseModel):
@@ -741,12 +755,226 @@ async def feedback_stats(db: Session = Depends(get_db)):
     likes = db.query(func.count(Feedback.id)).filter(Feedback.rating == 1).scalar() or 0
     dislikes = db.query(func.count(Feedback.id)).filter(Feedback.rating == -1).scalar() or 0
     recent = db.query(Feedback).order_by(desc(Feedback.created_at)).limit(10).all()
+    suggestion_total = db.query(func.count(ComplaintSuggestion.id)).filter(ComplaintSuggestion.deleted == 0).scalar() or 0
+    suggestion_pending = db.query(func.count(ComplaintSuggestion.id)).filter(
+        ComplaintSuggestion.deleted == 0,
+        ComplaintSuggestion.status == "pending",
+    ).scalar() or 0
+    suggestion_recent = (
+        db.query(ComplaintSuggestion)
+        .filter(ComplaintSuggestion.deleted == 0)
+        .order_by(desc(ComplaintSuggestion.created_at))
+        .limit(10)
+        .all()
+    )
     return {
         "total": total, "likes": likes, "dislikes": dislikes,
         "rate": round(likes / total * 100, 1) if total > 0 else 0,
         "recent": [{"id": f.id, "rating": f.rating, "question": f.question or "",
                      "created_at": f.created_at.isoformat() if f.created_at else ""} for f in recent],
+        "suggestions_total": suggestion_total,
+        "suggestions_pending": suggestion_pending,
+        "suggestions_recent": [
+            {
+                "id": s.id,
+                "category": s.category,
+                "name": s.name,
+                "contact": s.contact,
+                "content": s.content,
+                "status": s.status,
+                "created_at": s.created_at.isoformat() if s.created_at else "",
+            }
+            for s in suggestion_recent
+        ],
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# 失物招领 / 投诉建议
+# ══════════════════════════════════════════════════════════════
+
+class LostFoundCreate(BaseModel):
+    item_name: str
+    item_type: str = "lost"
+    location: str = ""
+    description: str = ""
+    contact: str = ""
+
+
+class LostFoundUpdate(BaseModel):
+    item_name: Optional[str] = None
+    item_type: Optional[str] = None
+    location: Optional[str] = None
+    description: Optional[str] = None
+    contact: Optional[str] = None
+    status: Optional[str] = None
+
+
+class SuggestionCreate(BaseModel):
+    category: str = "suggestion"
+    name: str = ""
+    contact: str = ""
+    content: str
+
+
+class SuggestionUpdate(BaseModel):
+    status: Optional[str] = None
+
+
+@router.get("/lost-found")
+async def list_lost_found(
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    status: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    q = db.query(LostFoundItem).filter(LostFoundItem.deleted == 0)
+    if status:
+        q = q.filter(LostFoundItem.status == status)
+    total = q.count()
+    rows = q.order_by(desc(LostFoundItem.created_at)).offset((page - 1) * size).limit(size).all()
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "item_name": item.item_name,
+                "item_type": item.item_type,
+                "location": item.location,
+                "description": item.description,
+                "contact": item.contact,
+                "status": item.status,
+                "created_at": item.created_at.isoformat() if item.created_at else "",
+            }
+            for item in rows
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+    }
+
+
+@router.post("/lost-found")
+async def create_lost_found(data: LostFoundCreate, db: Session = Depends(get_db)):
+    if not data.item_name.strip():
+        raise HTTPException(status_code=400, detail="物品名称不能为空")
+    item_type = data.item_type if data.item_type in {"lost", "found"} else "lost"
+    item = LostFoundItem(
+        item_name=data.item_name.strip(),
+        item_type=item_type,
+        location=data.location.strip(),
+        description=data.description.strip(),
+        contact=data.contact.strip(),
+        status="open",
+        created_at=datetime.datetime.now(),
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {"status": "ok", "id": item.id}
+
+
+@router.put("/lost-found/{item_id}")
+async def update_lost_found(item_id: int, data: LostFoundUpdate, db: Session = Depends(get_db)):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id, LostFoundItem.deleted == 0).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="失物招领条目不存在")
+    for field in ["item_name", "item_type", "location", "description", "contact", "status"]:
+        value = getattr(data, field)
+        if value is not None:
+            setattr(item, field, value.strip() if isinstance(value, str) else value)
+    if item.item_type not in {"lost", "found"}:
+        item.item_type = "lost"
+    if item.status not in {"open", "claimed", "closed"}:
+        item.status = "open"
+    db.commit()
+    return {"status": "ok", "id": item.id}
+
+
+@router.delete("/lost-found/{item_id}")
+async def delete_lost_found(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(LostFoundItem).filter(LostFoundItem.id == item_id, LostFoundItem.deleted == 0).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="失物招领条目不存在")
+    item.deleted = 1
+    db.commit()
+    return {"deleted": item_id, "status": "soft-deleted"}
+
+
+@router.get("/suggestions")
+async def list_suggestions(
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=50, ge=1, le=200),
+    status: str = Query(default=""),
+    db: Session = Depends(get_db),
+):
+    q = db.query(ComplaintSuggestion).filter(ComplaintSuggestion.deleted == 0)
+    if status:
+        q = q.filter(ComplaintSuggestion.status == status)
+    total = q.count()
+    rows = q.order_by(desc(ComplaintSuggestion.created_at)).offset((page - 1) * size).limit(size).all()
+    return {
+        "items": [
+            {
+                "id": item.id,
+                "category": item.category,
+                "name": item.name,
+                "contact": item.contact,
+                "content": item.content,
+                "status": item.status,
+                "created_at": item.created_at.isoformat() if item.created_at else "",
+            }
+            for item in rows
+        ],
+        "total": total,
+        "page": page,
+        "size": size,
+    }
+
+
+@router.post("/suggestions")
+async def create_suggestion(data: SuggestionCreate, db: Session = Depends(get_db)):
+    if not data.content.strip():
+        raise HTTPException(status_code=400, detail="意见内容不能为空")
+    category = data.category if data.category in {"suggestion", "complaint"} else "suggestion"
+    item = ComplaintSuggestion(
+        category=category,
+        name=data.name.strip(),
+        contact=data.contact.strip(),
+        content=data.content.strip(),
+        status="pending",
+        created_at=datetime.datetime.now(),
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {"status": "ok", "id": item.id}
+
+
+@router.put("/suggestions/{item_id}")
+async def update_suggestion(item_id: int, data: SuggestionUpdate, db: Session = Depends(get_db)):
+    item = db.query(ComplaintSuggestion).filter(
+        ComplaintSuggestion.id == item_id,
+        ComplaintSuggestion.deleted == 0,
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="意见不存在")
+    if data.status is not None:
+        item.status = data.status if data.status in {"pending", "processing", "resolved"} else "pending"
+    db.commit()
+    return {"status": "ok", "id": item.id}
+
+
+@router.delete("/suggestions/{item_id}")
+async def delete_suggestion(item_id: int, db: Session = Depends(get_db)):
+    item = db.query(ComplaintSuggestion).filter(
+        ComplaintSuggestion.id == item_id,
+        ComplaintSuggestion.deleted == 0,
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="意见不存在")
+    item.deleted = 1
+    db.commit()
+    return {"deleted": item_id, "status": "soft-deleted"}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -806,7 +1034,9 @@ async def list_reviews(
                 id=r.id, spot_id=r.spot_id, author=r.author, avatar=r.avatar,
                 rating=r.rating, text=r.text,
                 time=r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
-            ) for r in rows
+            ).dict() | {
+                "created_at": r.created_at.isoformat() if r.created_at else "",
+            } for r in rows
         ],
         "total": total, "page": page, "size": size,
     }
@@ -868,7 +1098,9 @@ async def list_checkins(
                 id=r.id, spot_id=r.spot_id, author=r.author, image=r.image,
                 caption=r.caption,
                 time=r.created_at.strftime("%Y-%m-%d") if r.created_at else "",
-            ) for r in rows
+            ).dict() | {
+                "created_at": r.created_at.isoformat() if r.created_at else "",
+            } for r in rows
         ],
         "total": total, "page": page, "size": size,
     }

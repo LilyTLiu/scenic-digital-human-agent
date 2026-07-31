@@ -17,6 +17,16 @@ interface FeedbackItem {
   created_at: string
 }
 
+interface SuggestionItem {
+  id: number
+  category: string
+  name: string
+  contact: string
+  content: string
+  status: string
+  created_at: string
+}
+
 export default function ReportPage() {
   const [records, setRecords] = useState<ChatRecord[]>([])
   const [fbStats, setFbStats] = useState({
@@ -25,6 +35,9 @@ export default function ReportPage() {
     dislikes: 0,
     rate: 0,
     recent: [] as FeedbackItem[],
+    suggestions_total: 0,
+    suggestions_pending: 0,
+    suggestions_recent: [] as SuggestionItem[],
   })
   const [stats, setStats] = useState({ totalChats: 0, totalSessions: 0, todayChats: 0 })
   const [loading, setLoading] = useState(true)
@@ -51,6 +64,9 @@ export default function ReportPage() {
             dislikes: fb.dislikes || 0,
             rate: fb.rate || 0,
             recent: fb.recent || [],
+            suggestions_total: fb.suggestions_total || 0,
+            suggestions_pending: fb.suggestions_pending || 0,
+            suggestions_recent: fb.suggestions_recent || [],
           })
         }
         if (chatData) {
@@ -120,6 +136,71 @@ export default function ReportPage() {
             </span>
           </div>
         </div>
+
+        <div className="admin-stat-card">
+          <p className="admin-stat-label">意见总数</p>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="admin-stat-accent" style={{ backgroundColor: 'var(--admin-gold)' }} />
+            <span className="admin-stat-value">{fbStats.suggestions_total.toLocaleString()}</span>
+          </div>
+        </div>
+
+        <div className="admin-stat-card">
+          <p className="admin-stat-label">待处理意见</p>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <span className="admin-stat-accent" style={{ backgroundColor: 'var(--admin-red)' }} />
+            <span className="admin-stat-value" style={{ color: 'var(--admin-red)' }}>
+              {fbStats.suggestions_pending.toLocaleString()}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Suggestions Table ── */}
+      <div className="admin-panel">
+        <div className="admin-panel-header">
+          <div className="admin-panel-title">投诉建议</div>
+        </div>
+        {fbStats.suggestions_recent.length === 0 ? (
+          <div className="admin-empty">暂无投诉建议</div>
+        ) : (
+          <div className="admin-table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>时间</th>
+                  <th>类型</th>
+                  <th>状态</th>
+                  <th>游客</th>
+                  <th>联系方式</th>
+                  <th>内容</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fbStats.suggestions_recent.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ width: 160, whiteSpace: 'nowrap' }}>
+                      {item.created_at ? new Date(item.created_at).toLocaleString('zh-CN') : '-'}
+                    </td>
+                    <td style={{ width: 90 }}>
+                      <span className={item.category === 'complaint' ? 'admin-tag admin-tag--red' : 'admin-tag admin-tag--gold'}>
+                        {item.category === 'complaint' ? '投诉' : '建议'}
+                      </span>
+                    </td>
+                    <td style={{ width: 100 }}>
+                      <span className={item.status === 'resolved' ? 'admin-tag admin-tag--green' : item.status === 'processing' ? 'admin-tag admin-tag--blue' : 'admin-tag admin-tag--gray'}>
+                        {item.status === 'resolved' ? '已处理' : item.status === 'processing' ? '处理中' : '待处理'}
+                      </span>
+                    </td>
+                    <td>{item.name || '-'}</td>
+                    <td>{item.contact || '-'}</td>
+                    <td style={{ maxWidth: 420 }}>{item.content || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* ── Feedback Table ── */}

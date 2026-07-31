@@ -37,94 +37,153 @@ const TAG_ROWS: TagRow[] = [
   },
 ]
 
-/** 根据选择的标签生成路线方案（加入随机种子使每次不同） */
-function generateRoute(selected: string[], customInput: string, seed: number) {
-  const allText = [...selected, customInput].join(' ')
-
-  const hasElder = /老人|轻松|慢/.test(allText)
-  const hasChild = /小孩|亲子/.test(allText)
-  const prefersHistory = /历史|文化|祈福|佛教/.test(allText)
-  const prefersNature = /自然|风景|摄影/.test(allText)
-  const prefersZen = /禅|静心|品茶/.test(allText)
-  const prefersPhoto = /拍照|打卡|出片/.test(allText)
-  const isSlow = /慢/.test(allText)
-
-  // 基于 seed 生成变体序号
-  const variantLabels = ['A', 'B', 'C']
-  const variantLabel = variantLabels[seed % 3]
-  const timeOffset = ['08:30', '09:00', '09:30'][seed % 3]
-  const endOffset = ['15:00', '15:30', '16:00'][seed % 3]
-
-  // 基础数据
-  const base = hasChild
-    ? { key: '亲子游', icon: '👨‍👩‍👧', image: '/spots/wumingqiao.png', color: '#e88b7e', tags: ['亲子', '智能定制'] as string[] }
-    : hasElder
-    ? { key: '轻松游', icon: '🌿', image: '/spots/lingshandafo.jpg', color: '#2d8a7b', tags: ['休闲', '智能定制'] as string[] }
-    : prefersHistory || prefersBlessing(allText)
-    ? { key: '文化祈福游', icon: '🏛️', image: '/spots/xiangfuchansi.jpg', color: '#8b5e3c', tags: ['文化', '智能定制'] as string[] }
-    : prefersNature || prefersPhoto
-    ? { key: '风光摄影游', icon: '📸', image: '/spots/manfeilongta.png', color: '#9b59b6', tags: ['摄影', '智能定制'] as string[] }
-    : prefersZen
-    ? { key: '禅意静心游', icon: '🧘', image: '/spots/linshanjingshe.jpg', color: '#1abc9c', tags: ['禅修', '智能定制'] as string[] }
-    : { key: '经典全景游', icon: '🏯', image: '/spots/linshanfangong.jpg', color: '#c8963e', tags: ['全景', '智能定制'] as string[] }
-
-  // 根据变体调整路线组合，使每次不同（每条路线有独立名称）
-  const routeVariants: Record<string, {
-    title: string; stops: string[]; spotTimes: string[]; tips: string; distance: string; duration: string
-  }[]> = {
-    '亲子游': [
-      { title: '童趣灵山·亲子时光', stops: ['jiulongguanyu','fanshouguangchang','wuyintancheng','fansong'], spotTimes: ['20','20','15','35'], tips: '以亲子互动为主，含九龙灌浴和转经筒体验。', distance: '约2.5km', duration: '约4小时' },
-      { title: '小小旅行家·文化探秘', stops: ['jiulongguanyu','xiangfuchansi','wuyintancheng','lingshanjingshe'], spotTimes: ['20','25','15','30'], tips: '兼顾文化与趣味，祥符禅寺听故事，精舍品茶歇脚。', distance: '约2.8km', duration: '约4.5小时' },
-      { title: '全家总动员·灵山欢乐行', stops: ['jiulongguanyu','fanshouguangchang','lingshandafo','fansong'], spotTimes: ['20','15','30','40'], tips: '亲子精华游，看表演、摸佛手、登大佛、赏梵宫。', distance: '约2.5km', duration: '约4小时' },
-    ],
-    '轻松游': [
-      { title: '悠然灵山·慢享时光', stops: ['jiulongguanyu','lingshandafo','lingshanjingshe','fansong'], spotTimes: ['20','40','30','25'], tips: '轻松步行，含九龙灌浴表演，大佛可乘电梯登顶。', distance: '约2.5km', duration: '约4小时' },
-      { title: '闲庭信步·禅意漫步', stops: ['zhaobi','wumingqiao','jiulongguanyu','lingshanjingshe'], spotTimes: ['10','10','20','30'], tips: '慢游灵山，从照壁开始，重点游览精舍园林。', distance: '约2km', duration: '约3.5小时' },
-      { title: '山水之间·自在灵山', stops: ['jiulongguanyu','manfeilongta','lingshanjingshe','fansong'], spotTimes: ['20','20','30','25'], tips: '自然与建筑交融，曼飞龙塔拍照，精舍静心。', distance: '约2.5km', duration: '约4小时' },
-    ],
-    '文化祈福游': [
-      { title: '千年梵音·祈福之旅', stops: ['zhaobi','wumingqiao','xiangfuchansi','lingshandafo','fansong'], spotTimes: ['10','10','25','50','50'], tips: '深度文化游览，含大佛登顶和梵宫参观。', distance: '约3km', duration: '约5小时' },
-      { title: '心诚则灵·祈福纳祥', stops: ['zhaobi','xiangfuchansi','lingshandafo','wuyintancheng'], spotTimes: ['10','25','50','25'], tips: '祈福主线：照壁祈福→祥符禅寺上香→登大佛抱佛脚→坛城转经。', distance: '约2.8km', duration: '约5小时' },
-      { title: '古刹朝圣·文化溯源', stops: ['wumingqiao','xiangfuchansi','lingshandafo','fansong','wuyintancheng'], spotTimes: ['10','25','40','50','25'], tips: '完整文化路线，从五明桥到五印坛城，涵盖灵山精髓。', distance: '约3.5km', duration: '约6小时' },
-    ],
-    '风光摄影游': [
-      { title: '光影灵山·摄影之旅', stops: ['jiulongguanyu','lingshandafo','fansong','manfeilongta','lingshanjingshe'], spotTimes: ['20','35','40','20','25'], tips: '精选最佳拍摄点，含大佛全景、梵宫穹顶和园林。', distance: '约3km', duration: '约5小时' },
-      { title: '镜头下的灵山·光影随行', stops: ['jiulongguanyu','fansong','manfeilongta','lingshanjingshe'], spotTimes: ['20','40','20','25'], tips: '光影之旅，趁晨光拍九龙灌浴，午后拍梵宫内部。', distance: '约2.5km', duration: '约4.5小时' },
-      { title: '一步一景·灵山映像', stops: ['lingshandafo','fansong','manfeilongta','lingshanjingshe'], spotTimes: ['40','40','15','25'], tips: '避开人流高峰，上午登大佛，下午梵宫和园林。', distance: '约2.5km', duration: '约4.5小时' },
-    ],
-    '禅意静心游': [
-      { title: '静心之旅·禅意人生', stops: ['lingshanjingshe','xiangfuchansi','fansong','wuyintancheng'], spotTimes: ['30','25','30','25'], tips: '以禅修静心为主，含精舍抄经、禅寺听钟和梵宫静赏。', distance: '约2km', duration: '约4小时' },
-      { title: '晨钟暮鼓·禅修净心', stops: ['xiangfuchansi','lingshanjingshe','wuyintancheng'], spotTimes: ['25','40','25'], tips: '清晨禅寺听晨钟，上午精舍抄经品茶，午后坛城登高。', distance: '约1.8km', duration: '约3.5小时' },
-      { title: '一花一世界·灵山归真', stops: ['lingshanjingshe','fansong','wuyintancheng'], spotTimes: ['40','35','25'], tips: '精舍→梵宫→坛城的静谧之旅，避开喧闹景点。', distance: '约1.5km', duration: '约3.5小时' },
-    ],
-    '经典全景游': [
-      { title: '全景灵山·一日尽览', stops: ['zhaobi','wumingqiao','jiulongguanyu','xiangfuchansi','lingshandafo','fansong'], spotTimes: ['10','10','25','25','50','50'], tips: '覆盖灵山胜境核心景点，合理安排游览顺序。', distance: '约3.5km', duration: '约6小时' },
-      { title: '灵山大环线·精华全收录', stops: ['zhaobi','jiulongguanyu','xiangfuchansi','lingshandafo','fansong','wuyintancheng'], spotTimes: ['10','20','20','40','40','25'], tips: '经典大环线，从照壁到坛城一网打尽。', distance: '约3.5km', duration: '约6小时' },
-      { title: '灵山精选·景景经典', stops: ['wumingqiao','jiulongguanyu','lingshandafo','fansong','manfeilongta'], spotTimes: ['10','20','40','40','20'], tips: '精选组合路线，含表演、大佛、梵宫和异域风情。', distance: '约3km', duration: '约5小时' },
-    ],
-  }
-
-  const variants = routeVariants[base.key] || routeVariants['经典全景游']
-  const chosen = variants[seed % variants.length]
-
-  return {
-    title: chosen.title,
-    icon: base.icon,
-    image: base.image,
-    color: base.color,
-    stops: chosen.stops,
-    distance: chosen.distance,
-    duration: chosen.duration,
-    intensity: isSlow ? '轻松' : '适中',
-    crowd: '适中',
-    tags: base.tags,
-    tips: `【方案${variantLabel}】${chosen.tips} 建议${timeOffset}前入园，${endOffset}左右结束。`,
-    spotTimes: chosen.spotTimes,
-  }
+interface SpotKnowledge {
+  id: string
+  order: number
+  minutes: number
+  themes: string[]
+  crowd: number
+  distanceWeight: number
+  note: string
 }
 
-function prefersBlessing(text: string) {
-  return /祈福|许愿|平安/.test(text)
+const SPOT_KNOWLEDGE: SpotKnowledge[] = [
+  { id: 'zhaobi', order: 1, minutes: 10, themes: ['blessing', 'history', 'photo'], crowd: 1, distanceWeight: 0.3, note: '灵山大照壁是入园第一站，适合祈福合影和理解“灵山胜境”题字。' },
+  { id: 'wumingqiao', order: 2, minutes: 10, themes: ['history', 'blessing', 'family'], crowd: 1, distanceWeight: 0.3, note: '五明桥与佛足坛适合做文化开场，步行压力小。' },
+  { id: 'jiulongguanyu', order: 3, minutes: 20, themes: ['family', 'nature', 'photo', 'classic'], crowd: 3, distanceWeight: 0.5, note: '九龙灌浴有固定演出时段，适合亲子、摄影和首次游览。' },
+  { id: 'xiangfuchansi', order: 4, minutes: 25, themes: ['history', 'blessing', 'zen'], crowd: 2, distanceWeight: 0.5, note: '祥符禅寺承载小灵山历史，适合文化祈福与安静参访。' },
+  { id: 'fanshouguangchang', order: 5, minutes: 15, themes: ['family', 'blessing', 'classic'], crowd: 2, distanceWeight: 0.4, note: '佛手广场互动性强，适合带小孩和祈福拍照。' },
+  { id: 'lingshandafo', order: 6, minutes: 40, themes: ['blessing', 'history', 'photo', 'classic'], crowd: 3, distanceWeight: 0.8, note: '灵山大佛是核心景点，有台阶与登高内容，老人同行时建议乘电梯并缩短停留。' },
+  { id: 'fansong', order: 7, minutes: 40, themes: ['history', 'photo', 'family', 'classic'], crowd: 3, distanceWeight: 0.7, note: '梵宫包含建筑艺术和演出内容，适合文化、摄影和室内休息。' },
+  { id: 'wuyintancheng', order: 8, minutes: 25, themes: ['history', 'family', 'blessing', 'zen'], crowd: 2, distanceWeight: 0.6, note: '五印坛城有转经筒体验，兼顾文化、祈福与互动。' },
+  { id: 'manfeilongta', order: 9, minutes: 20, themes: ['nature', 'photo'], crowd: 1, distanceWeight: 0.6, note: '曼飞龙塔适合异域风格拍照和轻松观景。' },
+  { id: 'lingshanjingshe', order: 10, minutes: 30, themes: ['zen', 'nature', 'elder'], crowd: 1, distanceWeight: 0.5, note: '灵山精舍适合慢节奏、禅修、品茶和老人休息。' },
+]
+
+const THEME_META: Record<string, { title: string; icon: string; image: string; color: string; tags: string[] }> = {
+  blessing: { title: '祈福纳祥', icon: '🙏', image: '/spots/xiangfuchansi.jpg', color: '#c8963e', tags: ['祈福', '佛教', '智能定制'] },
+  history: { title: '历史文化', icon: '🏛️', image: '/spots/linshandafo.jpg', color: '#8b5e3c', tags: ['历史', '文化', '智能定制'] },
+  nature: { title: '山水风物', icon: '🌿', image: '/spots/manfeilongta.png', color: '#2d8a7b', tags: ['自然', '摄影', '智能定制'] },
+  family: { title: '亲子轻松', icon: '👨‍👩‍👧', image: '/spots/wumingqiao.png', color: '#e88b7e', tags: ['亲子', '互动', '智能定制'] },
+  zen: { title: '禅意静心', icon: '🧘', image: '/spots/linshanjingshe.jpg', color: '#1abc9c', tags: ['禅修', '静心', '智能定制'] },
+  classic: { title: '灵山精选', icon: '🏯', image: '/spots/linshanfangong.jpg', color: '#c8963e', tags: ['全景', '经典', '智能定制'] },
+}
+
+const SPOT_NAME_KEYS: Record<string, string[]> = {
+  zhaobi: ['照壁', '大照壁'],
+  wumingqiao: ['五明桥', '佛足坛', '佛足印'],
+  jiulongguanyu: ['九龙灌浴', '表演', '花开见佛'],
+  xiangfuchansi: ['祥符禅寺', '禅寺', '寺庙'],
+  fanshouguangchang: ['佛手', '佛手广场', '击掌'],
+  lingshandafo: ['灵山大佛', '大佛', '抱佛脚'],
+  fansong: ['梵宫', '吉祥颂'],
+  wuyintancheng: ['五印坛城', '坛城', '转经筒'],
+  manfeilongta: ['曼飞龙塔', '白塔'],
+  lingshanjingshe: ['灵山精舍', '精舍', '禅修', '品茶'],
+}
+
+function generateRoute(selected: string[], customInput: string, seed: number) {
+  const allText = customInput.trim()
+  const selectedSet = new Set(selected)
+  const hasHalfDay = selectedSet.has('halfDay') || /半日|半天|下午.*离园|三点前|3点前/.test(allText)
+  const hasFullDay = selectedSet.has('fullDay') || /一日|全天|一天/.test(allText)
+  const isSlow = selectedSet.has('slow') || selectedSet.has('elder') || /老人|慢|少走|少台阶|轻松/.test(allText)
+  const hasChild = selectedSet.has('child') || selectedSet.has('family') || /小孩|孩子|亲子|儿童/.test(allText)
+
+  const themeScores: Record<string, number> = {
+    blessing: selectedSet.has('blessing') ? 5 : 0,
+    history: selectedSet.has('history') ? 5 : 0,
+    nature: selectedSet.has('nature') ? 5 : 0,
+    family: hasChild ? 6 : 0,
+    zen: selectedSet.has('zen') ? 5 : 0,
+    classic: 1,
+  }
+  if (/祈福|许愿|平安|抱佛脚|上香/.test(allText)) themeScores.blessing += 4
+  if (/历史|文化|佛教|建筑|典故|艺术/.test(allText)) themeScores.history += 4
+  if (/自然|山水|风景|太湖|园林/.test(allText)) themeScores.nature += 4
+  if (/拍照|打卡|摄影|出片/.test(allText)) themeScores.nature += 3
+  if (/禅|静心|抄经|品茶|安静/.test(allText)) themeScores.zen += 4
+  if (/亲子|小孩|孩子|互动/.test(allText)) themeScores.family += 4
+
+  const primaryTheme = Object.entries(themeScores).sort((a, b) => b[1] - a[1])[0][0]
+  const meta = THEME_META[primaryTheme] || THEME_META.classic
+  const requestedSpots = Object.entries(SPOT_NAME_KEYS)
+    .filter(([, keys]) => keys.some((key) => allText.includes(key)))
+    .map(([id]) => id)
+
+  const scored = SPOT_KNOWLEDGE.map((spot) => {
+    let score = 0
+    for (const theme of spot.themes) score += themeScores[theme] || 0
+    if (requestedSpots.includes(spot.id)) score += 12
+    if (hasChild && spot.themes.includes('family')) score += 4
+    if (isSlow && (spot.themes.includes('elder') || spot.crowd <= 1)) score += 3
+    if (isSlow && spot.id === 'lingshandafo') score -= 2
+    if (hasHalfDay && spot.minutes <= 25) score += 2
+    if (spot.themes.includes('classic') && !hasHalfDay) score += 1
+    return { ...spot, score }
+  })
+
+  const maxStops = hasHalfDay || isSlow ? 4 : hasFullDay ? 6 : 5
+  const mustHave = new Set<string>(requestedSpots)
+  if (hasChild) {
+    mustHave.add('jiulongguanyu')
+    mustHave.add('fanshouguangchang')
+  }
+  if (primaryTheme === 'blessing') {
+    mustHave.add('zhaobi')
+    mustHave.add('xiangfuchansi')
+  }
+  if (primaryTheme === 'zen') {
+    mustHave.add('lingshanjingshe')
+  }
+  if (primaryTheme === 'history') {
+    mustHave.add('xiangfuchansi')
+    mustHave.add('fansong')
+  }
+
+  const chosenIds = new Set<string>()
+  for (const id of mustHave) {
+    if (SPOT_KNOWLEDGE.some((spot) => spot.id === id) && chosenIds.size < maxStops) chosenIds.add(id)
+  }
+  scored
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .forEach((spot) => {
+      if (chosenIds.size < maxStops) chosenIds.add(spot.id)
+    })
+
+  const chosenSpots = SPOT_KNOWLEDGE
+    .filter((spot) => chosenIds.has(spot.id))
+    .sort((a, b) => a.order - b.order)
+  const totalMinutes = chosenSpots.reduce((sum, spot) => sum + spot.minutes, 0)
+  const walkMinutes = Math.max(35, Math.round(chosenSpots.reduce((sum, spot) => sum + spot.distanceWeight * 18, 0)))
+  const totalHours = Math.max(3, Math.min(7, Math.round((totalMinutes + walkMinutes) / 60 + 1)))
+  const variantLabels = ['A', 'B', 'C']
+  const variantLabel = variantLabels[seed % 3]
+  const startTime = hasHalfDay ? '09:30' : isSlow ? '09:00' : '08:30'
+  const intensity = isSlow || hasHalfDay ? '轻松' : chosenSpots.length >= 6 ? '适中' : '轻松'
+  const crowd = chosenSpots.some((spot) => spot.crowd >= 3) ? '较多' : '适中'
+  const titleSuffix = hasHalfDay ? '半日线' : isSlow ? '慢游线' : '精选线'
+  const notes = chosenSpots.slice(0, 3).map((spot) => spot.note).join(' ')
+  const extraTip = hasChild
+    ? '亲子同行建议优先卡九龙灌浴演出时间，并在佛手广场、坛城安排互动停留。'
+    : isSlow
+    ? '老人或慢节奏同行建议减少登高，灵山大佛可乘电梯，途中在精舍或梵宫安排休息。'
+    : '按景点空间顺序串联，减少折返，并保留核心讲解与拍照时间。'
+
+  return {
+    title: `${meta.title}·${titleSuffix}`,
+    icon: meta.icon,
+    image: meta.image,
+    color: meta.color,
+    stops: chosenSpots.map((spot) => spot.id),
+    distance: `约${(1.6 + chosenSpots.length * 0.32 + chosenSpots.reduce((sum, spot) => sum + spot.distanceWeight, 0) * 0.12).toFixed(1)}km`,
+    duration: `约${totalHours}小时`,
+    intensity,
+    crowd,
+    tags: meta.tags,
+    tips: `【方案${variantLabel}】AI 已根据您的选项和景点知识匹配路线。建议${startTime}前入园。${notes} ${extraTip}`,
+    spotTimes: chosenSpots.map((spot) => String(spot.minutes)),
+  }
 }
 
 export default function SmartPlanPage() {
@@ -158,7 +217,7 @@ export default function SmartPlanPage() {
   }, [selected, customInput, navigate])
 
   return (
-    <div className="page-enter" style={{ minHeight: '100vh', padding: '20px 20px 60px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+    <div className="page-enter" style={{ minHeight: 'calc(100vh - 40px)', padding: '20px 20px 60px', display: 'flex', justifyContent: 'center', alignItems: 'center', boxSizing: 'border-box' }}>
       <div style={{
         maxWidth: 700, width: '100%',
         background: 'rgba(255,255,255,0.55)',

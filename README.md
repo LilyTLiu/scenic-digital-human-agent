@@ -1,16 +1,18 @@
 # 灵山景区导览数字人系统
 
-面向无锡灵山胜境的景区导览数字人系统。当前主链路为：游客端统一数字人/对话框界面，魔珐星云数字人 SDK 驱动数字人形象，DeepSeek + RAG 生成讲解答案，faster-whisper 完成中文语音转文字，Microsoft Edge TTS 的 `zh-CN-XiaoxiaoNeural` 完成对话框语音播报。
+面向无锡灵山胜境的景区导览数字人系统。当前游客端合并为四个主界面：首页、云端伴游、游园地图、胜境风物。其中“云端伴游”为 AI 导游核心界面，使用魔珐星云数字人 SDK 驱动数字人形象，DeepSeek + RAG 生成讲解答案，faster-whisper 完成中文语音转文字，Microsoft Edge TTS 的 `zh-CN-XiaoxiaoNeural` 完成对话框语音播报。
 
 本仓库不提交 DeepSeek API Key、魔珐星云 App ID/App Secret、真实本地 `.env` 文件。部署者需要按本文档自行配置。
 
 ## 当前功能
 
-- 游客端首页、数字人问答、景区导览、路线推荐。
-- 数字人全屏界面与对话框全屏界面统一：问题和答案记录同步展示。
+- 游客端四界面：首页、云端伴游、游园地图、胜境风物。
+- 云端伴游桌面端为对话框 + 数字人同屏布局，手机端保留数字人/对话框切换布局；问题和答案记录同步展示。
 - 支持文字输入、浏览器录音、后端中文 ASR、流式问答、对话框 Xiaoxiao 语音播报。
-- 数字人形象通过魔珐星云前端 SDK 接入，连接、结束、播报停止由前端控制。
-- RAG 知识库基于灵山公开资料包构建，回答会按提示词约束为简洁中文导游讲解。
+- 数字人形象通过魔珐星云前端 SDK 接入，当前支持三位导游形象切换；连接、结束、播报停止由前端控制。
+- RAG 知识库基于公开资料包中的两个 Word 文档重建，覆盖灵山胜境与拈花湾禅意小镇条目，回答会按提示词约束为简洁中文导游讲解。
+- 游园地图支持高德地图点位、路线绘制和后端 TTS 景点播报。
+- 首页、游园地图、胜境风物包含天气展示；胜境风物包含景点浏览、评价、打卡和 TTS 播报。
 - 游客端布局分离：手机端保留移动布局和底部导航，电脑端启用侧边导航和宽屏布局。
 - 管理后台保留知识库、景区、数字人配置、反馈数据等功能。
 
@@ -39,18 +41,25 @@ backend/
   app/core/rag.py              # 知识库检索与导游提示词
   app/core/query_normalization.py
                                # 景区专有名词纠错
-  scripts/build_knowledge_base.py
-                               # 从示范资料包构建 Chroma 知识库
+  scripts/rebuild_demo_knowledge.py
+                               # 从两个 Word 文档重建 SQLite 与 Chroma
+  scripts/sync_knowledge_chroma.py
+                               # 从 SQLite 同步 Chroma 向量库
 
 frontend/
   src/hooks/useXmovAvatar.ts   # 魔珐星云 SDK 加载、连接、播报、停止
   src/hooks/useMediaQuery.ts   # 游客端布局模式判断
   src/pages/tourist/Layout.tsx # mobile/desktop 外壳与导航
   src/pages/tourist/ChatPage.tsx
-                               # 数字人/对话框统一问答界面
+                               # 云端伴游：数字人/对话框统一问答界面
   src/pages/tourist/HomePage.tsx
+                               # 首页：推荐、天气、入口
   src/pages/tourist/TourPage.tsx
-  src/pages/tourist/RecommendPage.tsx
+                               # 游园地图：高德地图、路线、TTS
+  src/pages/tourist/SpotExplorePage.tsx
+                               # 胜境风物：景点、天气、评价、打卡、TTS
+  src/components/ScenicMap.tsx  # 高德地图组件
+  src/config/amap.ts           # 高德 Key 与点位配置
   src/utils/asr.ts             # 前端录音格式与景区词纠错
 ```
 
@@ -142,11 +151,11 @@ python main.py
 
 ## 3. 构建知识库
 
-知识库构建脚本会读取仓库中的 `示范景区公开资料包` 下两个 Word 文档，并写入 ChromaDB。
+知识库构建脚本会读取仓库中的 `示范景区公开资料包` 下两个 Word 文档，并同时写入 SQLite `data.db` 与 ChromaDB。SQLite 中的 `knowledge_docs` 是管理端可见的知识条目来源，ChromaDB 是问答接口的向量检索索引。若管理端能看到资料但问答检索不到，通常需要重新执行本脚本同步两者。
 
 ```bash
 cd backend
-python scripts/build_knowledge_base.py
+python scripts/rebuild_demo_knowledge.py
 ```
 
 首次运行会下载 embedding 模型 `shibing624/text2vec-base-chinese`。如果模型已经下载到本机缓存，后续可在 `.env` 中设置：
@@ -176,16 +185,31 @@ copy .env.example .env.local
 编辑 `frontend/.env.local`：
 
 ```env
+# 导游小文
 VITE_XMOV_APP_ID=你的魔珐星云_App_ID
 VITE_XMOV_APP_SECRET=你的魔珐星云_App_Secret
+
+# 导游小云
+VITE_XMOV_AVATAR_2_ID=第二个魔珐星云_App_ID
+VITE_XMOV_AVATAR_2_SECRET=第二个魔珐星云_App_Secret
+
+# 导游小灵
+VITE_XMOV_AVATAR_3_ID=第三个魔珐星云_App_ID
+VITE_XMOV_AVATAR_3_SECRET=第三个魔珐星云_App_Secret
+
 VITE_XMOV_GATEWAY_SERVER=https://nebula-agent.xingyun3d.com/user/v1/ttsa/session
 VITE_XMOV_SDK_URL=https://media.xingyun3d.com/xingyun3d/general/litesdk/xmovAvatar@latest.js
+
+# 游园地图
+VITE_AMAP_KEY=你的高德 Web端 JS API Key
+VITE_AMAP_SECRET=你的高德安全密钥
 ```
 
 说明：
 
-- `VITE_XMOV_APP_ID` 和 `VITE_XMOV_APP_SECRET` 由魔珐星云数字人平台提供。
-- 这两个值会进入前端构建产物，适合开发和比赛演示。生产环境如果平台支持服务端签名或临时 token，建议改成服务端换取临时凭证。
+- 三组 `VITE_XMOV_*` ID/Secret 由魔珐星云数字人平台提供；不配置时云端伴游仍可使用左侧文字/语音问答，但不能连接数字人，未连接状态只显示本地静态形象，不产生魔珐平台计费。
+- `VITE_AMAP_KEY` 和 `VITE_AMAP_SECRET` 用于游园地图中的高德地图与步行路径绘制；未配置时组件会回退到静态提示。
+- 这些前端环境变量会进入前端构建产物，适合开发和比赛演示。生产环境如果平台支持服务端签名或临时 token，建议改成服务端换取临时凭证。
 - 不要提交 `.env.local`。
 
 启动前端：
@@ -205,14 +229,15 @@ npm run dev
 1. 启动后端：`backend` 下执行 `python main.py`。
 2. 启动前端：`frontend` 下执行 `npm run dev`。
 3. 浏览器打开 `https://localhost:5173`。
-4. 首页进入 `AI导游`。
-5. 在数字人界面点击右上角“连接”，连接魔珐星云数字人。
+4. 首页进入 `云端伴游`。
+5. 在数字人区域选择导游形象，点击“连接数字人”连接魔珐星云数字人。
 6. 使用底部输入框发送文字，或点击“麦”录音。
 7. 后端 ASR 识别语音，DeepSeek + RAG 生成答案，前端同步：
    - 数字人播报答案。
    - 对话框记录游客问题和数字人回答。
    - 对话框“播报”按钮使用 Xiaoxiao 声音播放答案。
-8. 点击“对话框”查看完整问答记录，再点击“数字人”回到数字人全屏。
+8. 桌面端在同屏对话框查看完整记录；手机端点击“对话框/数字人”切换视图。
+9. 游园地图页面可查看景点点位、路线与景点 TTS 播报；胜境风物页面可查看景点详情、天气、评价和打卡。
 
 ## 6. 当前链路说明
 
@@ -225,7 +250,7 @@ npm run dev
 
 调用流程：
 
-1. 从 `frontend/.env.local` 读取 `VITE_XMOV_APP_ID`、`VITE_XMOV_APP_SECRET`、SDK URL、gateway。
+1. 从 `frontend/.env.local` 读取当前选中导游的 App ID/App Secret、SDK URL、gateway。
 2. 动态加载魔珐星云 Web SDK。
 3. 初始化 SDK 实例并绑定全屏容器。
 4. 用户点击“连接”后建立数字人会话。
@@ -245,8 +270,8 @@ npm run dev
 
 1. 前端调用 `/api/chat/stream`。
 2. 后端先做景区专有名词纠错。
-3. 使用 ChromaDB 检索灵山知识库。
-4. 构造导游提示词，限制回答精简、基于知识库、不编造。
+3. 先从 SQLite 做关键词/专名兜底召回，再从 ChromaDB 做向量召回；票价、大照壁、路线、拈花湾等问题优先召回 Word 对应条目。
+4. 构造导游提示词，限制回答精简、基于知识库、不编造；路线问题要求尽量保留 Word 中给出的完整顺序。
 5. 调用 DeepSeek 流式接口。
 6. SSE token 返回前端，前端实时更新对话框和数字人文本区。
 
@@ -284,7 +309,7 @@ npm run dev
 
 注意：对话框播报声音和魔珐星云数字人平台内置声音是两条链路。当前只切换对话框播报为 Xiaoxiao，不修改魔珐平台中数字人自身的音源。
 
-## 7. 桌面端与手机端布局
+## 7. 四界面架构
 
 游客端不是复制两套功能，而是同一套功能逻辑、两套布局模式：
 
@@ -302,10 +327,10 @@ npm run dev
 
 - `min-width: 900px` 时启用。
 - 左侧侧边导航。
-- 首页双栏布局。
-- 数字人/对话框全屏适配。
-- 导览页选中景点后左侧地图、右侧详情。
-- 路线页三列卡片。
+- 首页负责推荐、天气、快捷入口。
+- 云端伴游为对话框 + 数字人同屏布局，底部支持文字、语音和快捷问答。
+- 游园地图负责高德地图、景点点位、路线绘制和景点介绍 TTS。
+- 胜境风物负责景点介绍、天气动效、评价、打卡和景点介绍 TTS。
 
 后续新增功能时建议：
 
@@ -348,7 +373,7 @@ python -m compileall app
 
 ```bash
 cd backend
-python scripts/build_knowledge_base.py
+python scripts/rebuild_demo_knowledge.py
 ```
 
 ## 9. 局域网访问与麦克风

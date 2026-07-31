@@ -116,6 +116,33 @@ class VisitorCheckin(Base):
     created_at = Column(DateTime, default=datetime.datetime.now)
 
 
+class LostFoundItem(Base):
+    """失物招领条目"""
+    __tablename__ = "lost_found_items"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    item_name = Column(String(128), nullable=False)
+    item_type = Column(String(32), default="lost")  # lost/found
+    location = Column(String(128), default="")
+    description = Column(Text, default="")
+    contact = Column(String(128), default="")
+    status = Column(String(32), default="open")  # open/claimed/closed
+    deleted = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+
+class ComplaintSuggestion(Base):
+    """投诉建议"""
+    __tablename__ = "complaint_suggestions"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    category = Column(String(32), default="suggestion")
+    name = Column(String(64), default="")
+    contact = Column(String(128), default="")
+    content = Column(Text, default="")
+    status = Column(String(32), default="pending")  # pending/processing/resolved
+    deleted = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.datetime.now)
+
+
 def get_collection_name(scenic_spot: str, db) -> str:
     """根据景区名/slug 获取 ChromaDB 集合名"""
     spot = db.query(ScenicSpot).filter(

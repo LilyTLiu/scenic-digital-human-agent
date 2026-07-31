@@ -1,6 +1,7 @@
 import random
 import uuid
 import json
+from pathlib import Path
 from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -28,6 +29,8 @@ class ProfileUpdate(BaseModel):
 # In-memory verification codes (demo mode)
 _codes: dict[str, str] = {}
 
+CODE_LOG_PATH = Path(__file__).resolve().parents[3] / "logs" / "verification_codes.log"
+
 
 def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)) -> User | None:
     if not authorization or not authorization.startswith("Bearer "):
@@ -50,6 +53,9 @@ async def send_code(req: SendCodeRequest):
 
     code = str(random.randint(1000, 9999))
     _codes[phone] = code
+    CODE_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with CODE_LOG_PATH.open("a", encoding="utf-8") as f:
+        f.write(f"手机号: {phone}  验证码: {code}\n")
     print(f"\n{'='*50}")
     print(f"[验证码] 手机号: {phone}  验证码: {code}")
     print(f"{'='*50}\n")
@@ -58,8 +64,8 @@ async def send_code(req: SendCodeRequest):
 
 @router.get("/codes")
 async def get_codes():
-    """查看当前验证码（仅演示模式使用）"""
-    return {"success": True, "codes": {k: v for k, v in _codes.items()}}
+    """验证码仅在后端控制台输出，不通过接口暴露。"""
+    return {"success": False, "error": "验证码请查看后端控制台输出"}
 
 
 @router.post("/login")

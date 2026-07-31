@@ -16,6 +16,7 @@ import ReportPage from './pages/admin/ReportPage'
 import ScenicSpots from './pages/admin/ScenicSpots'
 import Reviews from './pages/admin/Reviews'
 import Checkins from './pages/admin/Checkins'
+import LostFound from './pages/admin/LostFound'
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="digital-human" element={<DigitalHuman />} />
           <Route path="reviews" element={<Reviews />} />
           <Route path="checkins" element={<Checkins />} />
+          <Route path="lost-found" element={<LostFound />} />
           <Route path="reports" element={<ReportPage />} />
         </Route>
       </Routes>
