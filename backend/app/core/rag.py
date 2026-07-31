@@ -13,7 +13,10 @@ from chromadb import PersistentClient
 from chromadb.utils import embedding_functions
 
 KB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "knowledge_base")
-CHROMA_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "chroma_db")
+CHROMA_PATH = os.path.join(
+    os.environ.get("DATA_DIR", os.path.join(os.path.dirname(__file__), "..", "..")),
+    "chroma_db",
+)
 
 # 默认嵌入函数（延迟加载，避免 sentence_transformers 兼容问题）
 _default_ef = None
