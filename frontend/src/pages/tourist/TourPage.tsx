@@ -346,7 +346,7 @@ export default function TourPage() {
           </div>
 
           {/* 温馨提示 + 跳转按钮 */}
-          <div style={{ margin: '0 8px 20px 30px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+          <div style={{ margin: '0 8px 30px 30px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
             <div className="glass-warm" style={{ borderRadius: 12, padding: '8px 12px', border: '1px solid rgba(200,150,62,0.12)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: 10, color: '#8a7a6a', lineHeight: 1.6 }}>
                 <span style={{ fontWeight: 600, color: '#c8963e' }}>💡 出行提示：</span>
@@ -380,7 +380,7 @@ export default function TourPage() {
         <div style={{
           width: '35%',
           height: '100%',
-          padding: '0 30px 20px 8px',
+          padding: '0 30px 30px 8px',
           display: 'flex',
           flexDirection: 'column',
           gap: 10,
