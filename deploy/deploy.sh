@@ -13,6 +13,8 @@ set -e
 echo "🚀 灵山胜境数字人导游 — 开始部署"
 cd "$(dirname "$0")/.."   # 切到仓库根目录
 
+COMPOSE="docker compose --env-file deploy/.env -f deploy/docker-compose.yml"
+
 # ── 检查 deploy/.env ──
 if [ ! -f deploy/.env ]; then
     echo ""
@@ -40,27 +42,23 @@ if [ ! -f frontend/.env ]; then
 fi
 
 # ── HTTPS 证书（数字人渲染必需）──
-if [ ! -f certs/fullchain.pem ]; then
+if [ ! -f deploy/certs/fullchain.pem ]; then
     echo "🔐 生成自签名 HTTPS 证书…"
-    mkdir -p certs
+    mkdir -p deploy/certs
     SERVER_IP=$(curl -s --max-time 5 ifconfig.me 2>/dev/null || echo "127.0.0.1")
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout certs/privkey.pem \
-        -out certs/fullchain.pem \
+        -keyout deploy/certs/privkey.pem \
+        -out deploy/certs/fullchain.pem \
         -subj "/CN=$SERVER_IP"
     echo "   证书已生成（有效期 365 天）"
 fi
 
 # ── 构建 & 启动 ──
 echo "📦 构建镜像（首次需下载模型，约 5-10 分钟）…"
-docker compose \
-    --env-file deploy/.env \
-    build --no-cache
+$COMPOSE build --no-cache
 
 echo "🟢 启动服务…"
-docker compose \
-    --env-file deploy/.env \
-    up -d
+$COMPOSE up -d
 
 # ── 等待后端就绪 ──
 echo "⏳ 等待后端启动…"
@@ -81,6 +79,6 @@ echo "   HTTP:  http://${SERVER_IP}"
 echo "   HTTPS: https://${SERVER_IP}   ← 数字人必须用这个（点高级→继续访问）"
 echo "   管理后台: http://${SERVER_IP}/admin"
 echo ""
-echo "   查看日志: docker compose logs -f"
-echo "   停止服务: docker compose down"
+echo "   查看日志: $COMPOSE logs -f"
+echo "   停止服务: $COMPOSE down"
 echo "   更新代码: git pull origin main && bash deploy/deploy.sh"

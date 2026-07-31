@@ -1,26 +1,29 @@
 # 灵山胜境数字人导游 — 生产部署指南
 
-本目录包含将系统部署到 Linux 服务器（推荐阿里云 ECS 2C4G）的完整配置。
+本目录是一个**自包含的部署文件夹**：所有部署配置集中在此，通过 `build.context` 指向源码目录构建，拿这一个文件夹 + 源码即可完成部署。
 
 ## 📁 文件说明
 
-部署包的核心配置在**仓库根目录**（Docker 构建时直接使用），`deploy/` 目录提供配置模板、一键脚本和本文档：
-
 ```
-仓库根目录/
-├── docker-compose.yml     # 服务编排（后端 + 前端 + 持久化卷 + HTTPS）
+deploy/                       ← 部署文件夹（自包含）
+├── docker-compose.yml        # 服务编排（后端 + 前端 + 持久化卷 + HTTPS）
 ├── frontend/
-│   ├── Dockerfile         # 前端构建（React + Vite → nginx）
-│   ├── nginx.conf         # HTTP/HTTPS 双协议 + API 反向代理
-│   └── .env               # 前端变量（Vite 构建时读取，不入 Git）
+│   ├── Dockerfile            # 前端构建（React + Vite → nginx）
+│   └── nginx.conf            # HTTP/HTTPS 双协议 + API 反向代理（volume 挂载）
 ├── backend/
-│   └── Dockerfile         # 后端构建（FastAPI，含国内镜像加速）
-├── certs/                 # HTTPS 证书（脚本自动生成）
-└── deploy/
-    ├── .env.example       # 环境变量模板（复制为 deploy/.env）
-    ├── deploy.sh          # 一键部署脚本
-    └── README.md          # 本文档
+│   └── Dockerfile            # 后端构建（FastAPI，含国内镜像加速）
+├── certs/                    # HTTPS 证书（deploy.sh 自动生成）
+├── .env.example              # 环境变量模板（复制为 deploy/.env）
+├── deploy.sh                 # 一键部署脚本
+└── README.md                 # 本文档
 ```
+
+**依赖的仓库根目录内容**（构建上下文，不在本文件夹）：
+- `backend/` 后端源码
+- `frontend/` 前端源码 + `frontend/.env`（Vite 变量，不入 Git）
+- `示范景区公开资料包/` 知识库 Word 源文件
+
+> 根目录的 `backend/Dockerfile`、`frontend/Dockerfile`、`frontend/nginx.conf`、`docker-compose.yml` 是源码自带的等价副本，供本地/其他流程使用；生产部署统一用本 `deploy/` 文件夹。
 
 ## ⚙️ 环境要求
 
