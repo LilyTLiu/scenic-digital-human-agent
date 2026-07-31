@@ -24,10 +24,10 @@ const DESKTOP_QUICK_QUESTIONS = [
   '推荐一条半日游路线',
 ]
 const INPUT_QUICK_QUESTIONS = [
-  { label: '购票相关', question: '请介绍一下灵山胜境的票价、购票方式和优惠政策。' },
-  { label: '演出活动相关', question: '请介绍一下灵山胜境的演出活动、开放时间和推荐观看安排。' },
-  { label: '服务设施相关', question: '请介绍一下灵山胜境的服务设施，比如停车、餐饮、卫生间和游客中心。' },
-  { label: '住宿相关', question: '请介绍一下灵山胜境及周边的住宿相关信息。' },
+  { label: '购票相关', mobileLabel: '购票', question: '请介绍一下灵山胜境的票价、购票方式和优惠政策。' },
+  { label: '演出活动相关', mobileLabel: '演出活动', question: '请介绍一下灵山胜境的演出活动、开放时间和推荐观看安排。' },
+  { label: '服务设施相关', mobileLabel: '服务设施', question: '请介绍一下灵山胜境的服务设施，比如停车、餐饮、卫生间和游客中心。' },
+  { label: '住宿相关', mobileLabel: '住宿', question: '请介绍一下灵山胜境及周边的住宿相关信息。' },
 ]
 
 function createSessionId() {
@@ -566,7 +566,7 @@ export default function ChatPage() {
             disabled={inputDisabled}
             title={item.question}
           >
-            {item.label}
+            {isDesktop ? item.label : item.mobileLabel}
           </button>
         ))}
       </div>
@@ -769,11 +769,11 @@ export default function ChatPage() {
       <div className="tourist-chat-shell tourist-chat-dialog" style={{
         height: 'calc(100vh - 60px)',
         display: 'grid',
-        gridTemplateRows: 'auto auto 1fr auto',
+        gridTemplateRows: 'auto 1fr auto',
         background: '#f7f4ef',
         overflow: 'hidden',
       }}>
-        <header style={{
+        <header className="tourist-chat-mobile-page-header" style={{
           display: 'flex',
           alignItems: 'center',
           gap: 10,
@@ -781,13 +781,14 @@ export default function ChatPage() {
           background: '#1a1a2e',
           color: '#fff',
         }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>对话框</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.58)', marginTop: 2 }}>
-              文字和语音问答记录
+          <div className="tourist-chat-mobile-title-copy" style={{ flex: 1, minWidth: 0 }}>
+            <div className="tourist-chat-mobile-title" style={{ fontSize: 15, fontWeight: 700 }}>灵山胜境 · 云端伴游</div>
+            <div className="tourist-chat-mobile-subtitle" style={{ fontSize: 11, color: 'rgba(255,255,255,0.58)', marginTop: 2 }}>
+              有问必答，入影随行——您的专属AI导游
             </div>
           </div>
           <button
+            className="tourist-chat-mobile-switch-button"
             onClick={() => setViewMode('avatar')}
             style={{
               border: '1px solid rgba(255,255,255,0.22)',
@@ -802,9 +803,6 @@ export default function ChatPage() {
             数字人
           </button>
         </header>
-        <div className="tourist-chat-dialog-avatar-picker">
-          {avatarSelector}
-        </div>
         {dialogMessages}
         {inputBar}
       </div>
@@ -819,18 +817,19 @@ export default function ChatPage() {
         height: 'calc(100vh - 60px)',
         position: 'relative',
         overflow: 'hidden',
-        background: '#050505',
+        background: '#f7f4ef',
         color: '#fff',
       }}
     >
       <div
         id={xmov.containerId}
+        className="tourist-chat-mobile-avatar-canvas"
         style={{
           position: 'absolute',
           inset: 0,
           zIndex: 0,
           pointerEvents: 'none',
-          background: 'radial-gradient(circle at 50% 18%, #1d2e29 0%, #050505 62%)',
+          background: 'radial-gradient(circle at 50% 20%, rgba(236,226,203,0.92) 0%, rgba(247,244,239,0.96) 50%, #f7f4ef 100%)',
         }}
       />
       {(!avatarConnected && !avatarBusy) && (
@@ -843,31 +842,32 @@ export default function ChatPage() {
       )}
 
       {(!xmov.configured || xmov.status === 'idle' || xmov.status === 'error') && (
-        <div style={{
+        <div className="tourist-chat-mobile-standby-copy" style={{
           position: 'absolute',
           inset: 0,
-          zIndex: 1,
+          zIndex: 3,
           display: 'flex',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
-          padding: 24,
-          background: avatarConnected ? 'transparent' : 'rgba(0,0,0,0.42)',
+          padding: '138px 24px 24px',
+          background: avatarConnected ? 'transparent' : 'rgba(247,244,239,0.24)',
           pointerEvents: 'none',
         }}>
           <div style={{
             width: 'min(520px, 92%)',
             textAlign: 'center',
-            color: 'rgba(255,255,255,0.86)',
+            color: 'rgba(61,54,48,0.86)',
             lineHeight: 1.7,
             fontSize: 13,
           }}>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>灵山胜境 AI 数字导游</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6, color: '#8f6f3d' }}>灵山胜境 AI 数字导游</div>
             <div>{xmov.configured ? '点击连接数字人，也可以直接使用下方文字或语音问答。' : '请先配置数字人应用参数；下方文字和语音问答仍可正常使用。'}</div>
           </div>
         </div>
       )}
 
       <header
+        className="tourist-chat-mobile-page-header"
         onClick={(event) => event.stopPropagation()}
         style={{
           position: 'absolute',
@@ -879,10 +879,11 @@ export default function ChatPage() {
           alignItems: 'center',
           gap: 10,
           padding: '12px 16px',
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.72), rgba(0,0,0,0))',
+          background: '#1a1a2e',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
         }}
       >
-        <div style={{
+        <div className="tourist-chat-mobile-status-dot" style={{
           width: 10,
           height: 10,
           borderRadius: '50%',
@@ -890,15 +891,16 @@ export default function ChatPage() {
           boxShadow: '0 0 12px currentColor',
           flexShrink: 0,
         }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>数字人</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.62)', marginTop: 2 }}>
-            {avatarStatusText}
+        <div className="tourist-chat-mobile-title-copy" style={{ flex: 1, minWidth: 0 }}>
+          <div className="tourist-chat-mobile-title" style={{ fontSize: 15, fontWeight: 700 }}>灵山胜境 · 云端伴游</div>
+          <div className="tourist-chat-mobile-subtitle" style={{ fontSize: 11, color: 'rgba(255,255,255,0.62)', marginTop: 2 }}>
+            有问必答，入影随行——您的专属AI导游
           </div>
         </div>
-        {xmov.configured && !avatarConnected && !avatarBusy && (
-          <button
-            onClick={() => void connectAvatar()}
+          {xmov.configured && !avatarConnected && !avatarBusy && (
+            <button
+              className="tourist-chat-mobile-action-button"
+              onClick={() => void connectAvatar()}
             style={{
               border: '1px solid rgba(255,255,255,0.22)',
               background: xmov.status === 'error' ? 'rgba(255,255,255,0.1)' : '#c8963e',
@@ -912,9 +914,9 @@ export default function ChatPage() {
             {xmov.status === 'error' ? '重连' : '连接'}
           </button>
         )}
-        {xmov.configured && (avatarConnected || avatarBusy) && (
-          <button
-            onClick={() => void disconnectAvatar()}
+          {xmov.configured && (avatarConnected || avatarBusy) && (
+            <button
+              onClick={() => void disconnectAvatar()}
             style={{
               border: '1px solid rgba(255,255,255,0.22)',
               background: 'rgba(217,83,79,0.86)',
@@ -929,6 +931,7 @@ export default function ChatPage() {
           </button>
         )}
         <button
+          className="tourist-chat-mobile-switch-button"
           onClick={() => setViewMode('dialog')}
           style={{
             border: '1px solid rgba(255,255,255,0.22)',
@@ -943,6 +946,12 @@ export default function ChatPage() {
           对话框
         </button>
       </header>
+      <div
+        className="tourist-chat-mobile-avatar-picker"
+        onClick={(event) => event.stopPropagation()}
+      >
+        {avatarSelector}
+      </div>
 
       {avatarSpeaking && (
         <button
@@ -999,7 +1008,6 @@ export default function ChatPage() {
       )}
 
       <div className="tourist-chat-mobile-bottom">
-        {avatarSelector}
         {inputBar}
       </div>
     </div>

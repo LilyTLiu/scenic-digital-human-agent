@@ -235,84 +235,84 @@ export default function HomePage() {
     <div className="page-enter tourist-home" style={{ padding: '0 0 32px', position: 'relative' }}>
 
       {/* === 顶部：大图 + 悬浮信息卡片 === */}
-      <div style={{ margin: '0 20px 0', position: 'relative', gridColumn: '1 / -1', paddingBottom: 50 }}>
-        <div style={{ width: '100%', height: 380, background: 'url(/首页模块底图.jpg) center / cover no-repeat', borderRadius: 16, overflow: 'hidden', position: 'relative', cursor: 'pointer', animation: 'zenFadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) both', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease', boxShadow: '0 4px 20px rgba(184,166,135,0.08)' }}
+      <div className="tourist-home-hero-wrap" style={{ margin: '0 20px 0', position: 'relative', gridColumn: '1 / -1', paddingBottom: 50 }}>
+        <div className="tourist-home-hero-card" style={{ width: '100%', height: 380, background: 'url(/首页模块底图.jpg) center / cover no-repeat', borderRadius: 16, overflow: 'hidden', position: 'relative', cursor: 'pointer', animation: 'zenFadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) both', transition: 'transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.4s ease', boxShadow: '0 4px 20px rgba(184,166,135,0.08)' }}
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 36px rgba(44,41,38,0.12)' }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(184,166,135,0.08)' }}
         >
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(74,60,49,0.42) 100%)' }} />
-          <div style={{ position: 'relative', zIndex: 1, height: '100%', padding: '22px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'rgba(251,249,245,0.20)', color: '#fbf9f5', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,249,245,0.25)' }}>国家5A级景区</span>
-                <span style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'rgba(251,249,245,0.20)', color: '#fbf9f5', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,249,245,0.25)' }}>世界佛教论坛永久会址</span>
+          <div className="tourist-home-hero-content" style={{ position: 'relative', zIndex: 1, height: '100%', padding: '22px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div className="tourist-home-hero-top" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div className="tourist-home-hero-badges" style={{ display: 'flex', gap: 8 }}>
+                <span className="tourist-home-hero-badge" style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'rgba(251,249,245,0.20)', color: '#fbf9f5', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,249,245,0.25)' }}>国家5A级景区</span>
+                <span className="tourist-home-hero-badge" style={{ padding: '4px 12px', borderRadius: 20, fontSize: 11, fontWeight: 500, background: 'rgba(251,249,245,0.20)', color: '#fbf9f5', backdropFilter: 'blur(6px)', border: '1px solid rgba(251,249,245,0.25)' }}>世界佛教论坛永久会址</span>
               </div>
               <div>
                 {user ? (
-                  <button onClick={() => setProfileOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 4px', borderRadius: 16, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 12, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+                  <button className="tourist-home-login-chip" onClick={() => setProfileOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 4px', borderRadius: 16, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 12, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
                     <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(135deg, #c8963e, #e88b7e)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff' }}>{user.nickname?.[0] || '👤'}</div>
                     <span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.nickname}</span>
                   </button>
                 ) : (
-                  <button onClick={() => setLoginOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 16, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 12, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
+                  <button className="tourist-home-login-chip" onClick={() => setLoginOpen(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 16, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 12, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/></svg> 登录
                   </button>
                 )}
               </div>
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <h1 style={{ fontFamily: "'Noto Serif SC', 'Source Han Serif SC', serif", fontSize: 34, color: '#fbf9f5', fontWeight: 700, marginBottom: 7, textShadow: '0 2px 8px rgba(0,0,0,0.30)', letterSpacing: '0.03em' }}>步入灵山胜境，静听梵音澄心</h1>
-              <p style={{ fontSize: 16, color: 'rgba(251,249,245,0.84)', lineHeight: 1.55, textShadow: '0 1px 4px rgba(0,0,0,0.20)' }}>从梵宫圣境到九龙灌浴，为你开启一场洗涤心灵的智慧行游。</p>
+            <div className="tourist-home-hero-copy" style={{ marginBottom: 10 }}>
+              <h1 className="tourist-home-hero-title" style={{ fontFamily: "'Noto Serif SC', 'Source Han Serif SC', serif", fontSize: 34, color: '#fbf9f5', fontWeight: 700, marginBottom: 7, textShadow: '0 2px 8px rgba(0,0,0,0.30)', letterSpacing: '0.03em' }}>步入灵山胜境，静听梵音澄心</h1>
+              <p className="tourist-home-hero-subtitle" style={{ fontSize: 16, color: 'rgba(251,249,245,0.84)', lineHeight: 1.55, textShadow: '0 1px 4px rgba(0,0,0,0.20)' }}>从梵宫圣境到九龙灌浴，为你开启一场洗涤心灵的智慧行游。</p>
             </div>
           </div>
         </div>
 
         {/* 压线悬浮四卡片 */}
-        <div style={{ position: 'absolute', bottom: 0, left: 24, right: 24, zIndex: 10, display: 'flex', gap: 14 }}>
+        <div className="tourist-home-stat-row" style={{ position: 'absolute', bottom: 0, left: 24, right: 24, zIndex: 10, display: 'flex', gap: 14 }}>
           {[
             { value: '15+', label: '核心胜境' },
             { value: weather ? `${weather.temp}°C` : '--°C', label: '今日气温' },
             { value: '4-6', label: '游览时长', unit: 'h' },
             { value: '禅意', label: '人文风物', unit: '美学' },
           ].map((card, i) => (
-            <div key={i} style={{ flex: 1, height: 80, background: '#fbf9f5', borderRadius: 14, border: '1px solid rgba(184,166,135,0.28)', boxShadow: '0 10px 25px rgba(184,166,135,0.18)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: 14, paddingLeft: 18, cursor: 'pointer', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease' }}
+            <div className="tourist-home-stat-card" key={i} style={{ flex: 1, height: 80, background: '#fbf9f5', borderRadius: 14, border: '1px solid rgba(184,166,135,0.28)', boxShadow: '0 10px 25px rgba(184,166,135,0.18)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: 14, paddingLeft: 18, cursor: 'pointer', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease' }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 14px 32px rgba(168,135,84,0.25)' }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(184,166,135,0.18)' }}
             >
-              <div style={{ fontSize: 24, fontWeight: 700, color: '#a88754', fontFamily: 'system-ui, sans-serif', lineHeight: 1.2 }}>{card.value}{card.unit && <span style={{ fontSize: 14, fontWeight: 500, marginLeft: 2, color: '#a88754' }}>{card.unit}</span>}</div>
-              <div style={{ fontSize: 12, color: '#8c7c6e', marginTop: 3, fontFamily: "'Noto Serif SC', serif", letterSpacing: '0.05em' }}>{card.label}</div>
+              <div className="tourist-home-stat-value" style={{ fontSize: 24, fontWeight: 700, color: '#a88754', fontFamily: 'system-ui, sans-serif', lineHeight: 1.2 }}>{card.value}{card.unit && <span style={{ fontSize: 14, fontWeight: 500, marginLeft: 2, color: '#a88754' }}>{card.unit}</span>}</div>
+              <div className="tourist-home-stat-label" style={{ fontSize: 12, color: '#8c7c6e', marginTop: 3, fontFamily: "'Noto Serif SC', serif", letterSpacing: '0.05em' }}>{card.label}</div>
             </div>
           ))}
         </div>
       </div>
 
       {/* === AI数字导游 + 地图导览（6:4） === */}
-      <div style={{ margin: '20px 20px 0', display: 'flex', gap: 14, position: 'relative', zIndex: 3, gridColumn: '1 / -1' }}>
-        <div style={{ flex: 6, display: 'flex', alignItems: 'stretch' }}>
-          <div className="card" style={{ background: 'rgba(255,252,247,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', padding: '18px', display: 'flex', gap: 16, alignItems: 'center', width: '100%', height: '100%' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h2 className="guofeng-title" style={{ fontSize: 20, color: '#c8963e', marginBottom: 4 }}>我在灵山胜境等你</h2>
-              <p style={{ fontSize: 14, color: '#5c5348', lineHeight: 1.65, marginBottom: 12 }}>我是导游小文，游览路线、灵山故事都可以问我。</p>
-              <button onClick={() => navigate('/tourist/chat')} style={{ padding: '7px 22px', borderRadius: 20, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #c8963e, #a0722a)', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 12px rgba(200,150,62,0.28)', fontFamily: 'inherit' }}
+      <div className="tourist-home-entry-row" style={{ margin: '20px 20px 0', display: 'flex', gap: 14, position: 'relative', zIndex: 3, gridColumn: '1 / -1' }}>
+        <div className="tourist-home-guide-entry" style={{ flex: 6, display: 'flex', alignItems: 'stretch' }}>
+          <div className="card tourist-home-guide-card" style={{ background: 'rgba(255,252,247,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', padding: '18px', display: 'flex', gap: 16, alignItems: 'center', width: '100%', height: '100%' }}>
+            <div className="tourist-home-guide-copy" style={{ flex: 1, minWidth: 0 }}>
+              <h2 className="guofeng-title tourist-home-entry-title" style={{ fontSize: 20, color: '#c8963e', marginBottom: 4 }}>我在灵山胜境等你</h2>
+              <p className="tourist-home-entry-text" style={{ fontSize: 14, color: '#5c5348', lineHeight: 1.65, marginBottom: 12 }}>我是导游小文，游览路线、灵山故事都可以问我。</p>
+              <button className="tourist-home-entry-action" onClick={() => navigate('/tourist/chat')} style={{ padding: '7px 22px', borderRadius: 20, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #c8963e, #a0722a)', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 12px rgba(200,150,62,0.28)', fontFamily: 'inherit' }}
                 onMouseEnter={e => { (e.target as HTMLButtonElement).style.transform = 'translateY(-1px)' }}
                 onMouseLeave={e => { (e.target as HTMLButtonElement).style.transform = 'translateY(0)' }}
               >💬 与我对话</button>
             </div>
-            <div style={{ width: 90, height: 120, flexShrink: 0, borderRadius: 10, overflow: 'hidden', background: 'linear-gradient(135deg, rgba(200,150,62,0.08), rgba(180,130,70,0.04))' }}>
+            <div className="tourist-home-guide-avatar" style={{ width: 90, height: 120, flexShrink: 0, borderRadius: 10, overflow: 'hidden', background: 'linear-gradient(135deg, rgba(200,150,62,0.08), rgba(180,130,70,0.04))' }}>
               <img src="/avatars/guide-xiaowen.png" alt="导游小文" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
           </div>
         </div>
-        <div style={{ flex: 4, display: 'flex', alignItems: 'stretch' }}>
-          <div className="card" style={{ background: 'rgba(255,252,247,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', padding: '18px', cursor: 'pointer', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease', width: '100%', height: '100%' }}
+        <div className="tourist-home-map-entry" style={{ flex: 4, display: 'flex', alignItems: 'stretch' }}>
+          <div className="card tourist-home-map-card" style={{ background: 'rgba(255,252,247,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', padding: '18px', cursor: 'pointer', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease', width: '100%', height: '100%' }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 8px 28px rgba(45,138,123,0.15)' }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none' }}
             onClick={() => navigate('/tourist/tour')}
           >
-            <div style={{ fontSize: 26, marginBottom: 4 }}>🗺️</div>
-            <h2 className="guofeng-title" style={{ fontSize: 18, color: '#c8963e', marginBottom: 4 }}>游园导览地图</h2>
-            <p style={{ fontSize: 14, color: '#5c5348', lineHeight: 1.65, marginBottom: 10 }}>景点定位、路线规划，一图在手游灵山。</p>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all 0.25s', padding: '7px 22px', borderRadius: 20, background: 'linear-gradient(135deg, #c8963e, #a0722a)', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 12px rgba(200,150,62,0.28)' }} onMouseEnter={e => { (e.target as HTMLDivElement).style.transform = 'translateY(-1px)' }} onMouseLeave={e => { (e.target as HTMLDivElement).style.transform = 'translateY(0)' }}>立即探索 <span style={{ fontSize: 14 }}>→</span></div>
+            <div className="tourist-home-map-icon" style={{ fontSize: 26, marginBottom: 4 }}>🗺️</div>
+            <h2 className="guofeng-title tourist-home-entry-title" style={{ fontSize: 18, color: '#c8963e', marginBottom: 4 }}>游园导览地图</h2>
+            <p className="tourist-home-entry-text" style={{ fontSize: 14, color: '#5c5348', lineHeight: 1.65, marginBottom: 10 }}>景点定位、路线规划，一图在手游灵山。</p>
+            <div className="tourist-home-entry-action" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', transition: 'all 0.25s', padding: '7px 22px', borderRadius: 20, background: 'linear-gradient(135deg, #c8963e, #a0722a)', color: '#fff', fontSize: 13, fontWeight: 600, boxShadow: '0 4px 12px rgba(200,150,62,0.28)' }} onMouseEnter={e => { (e.target as HTMLDivElement).style.transform = 'translateY(-1px)' }} onMouseLeave={e => { (e.target as HTMLDivElement).style.transform = 'translateY(0)' }}>立即探索 <span style={{ fontSize: 14 }}>→</span></div>
           </div>
         </div>
       </div>

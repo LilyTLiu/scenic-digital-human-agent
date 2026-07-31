@@ -8,6 +8,12 @@ export default function SplashScreen() {
   const [exiting, setExiting] = useState(false)
 
   useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 900px)')
+    if (!desktopQuery.matches) {
+      setVisible(false)
+      return
+    }
+
     try {
       if (!sessionStorage.getItem(SPLASH_STORAGE_KEY)) {
         setVisible(true)

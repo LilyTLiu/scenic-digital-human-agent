@@ -288,18 +288,18 @@ export default function TourPage() {
     <div className="page-enter" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
 
       {/* 顶栏：统一国风标题 */}
-      <header className="tour-page-header tourist-tour-header" style={{ margin: '0 clamp(18px, 6vw, 120px) 0', flexShrink: 0 }}>
+      <header className="tour-page-header tourist-tour-header tourist-map-page-header" style={{ margin: '0 clamp(18px, 6vw, 120px) 0', flexShrink: 0 }}>
         <h1 className="tour-title">灵山胜境 · 游园导览</h1>
         <p className="tour-subtitle">一图在手，步移景异 — 点击标记聆听讲解</p>
       </header>
 
       {/* 🛠️ 关键修改点1：锁定舞台视口高度，禁止外层全局滚动 */}
-      <div style={{ display: 'flex', height: 'calc(100vh - 138px)', overflow: 'hidden', boxSizing: 'border-box', padding: '0 clamp(18px, 6vw, 120px) 18px', gap: 18 }}>
+      <div className="tourist-map-stage" style={{ display: 'flex', height: 'calc(100vh - 138px)', overflow: 'hidden', boxSizing: 'border-box', padding: '0 clamp(18px, 6vw, 120px) 18px', gap: 18 }}>
         
         {/* 🛠️ 关键修改点2：左侧容器设置相同的高宽控制以稳固弹性空间 */}
-        <div style={{ width: '62%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, boxSizing: 'border-box' }}>
+        <div className="tourist-map-main-column" style={{ width: '62%', height: '100%', display: 'flex', flexDirection: 'column', gap: 0, boxSizing: 'border-box' }}>
           {/* 通知栏 + 全景（同行） */}
-          <div style={{ margin: '0', display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div className="tourist-map-notice-row" style={{ margin: '0', display: 'flex', gap: 6, flexShrink: 0 }}>
             {(() => {
               const nearest = performances[0]
               return (
@@ -343,13 +343,13 @@ export default function TourPage() {
             </div>
           </div>
           {/* 地图区域 */}
-          <div className="tourist-tour-map" style={{ flex: 1, margin: '5px 0', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minHeight: 0, minWidth: 0 }}>
+          <div className="tourist-tour-map tourist-map-panel" style={{ flex: 1, margin: '5px 0', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)', minHeight: 0, minWidth: 0 }}>
             <ScenicMap spots={SCENIC_SPOTS} routes={ROUTES} activeRoute={activeRoute} activeSpot={activeSpot} onSpotClick={(spot: any) => handleSpotClick(spot)} onInfoWindowClose={stopAudio} focusSpotId={focusSpotId} />
           </div>
 
           {/* 温馨提示 + 跳转按钮 */}
-          <div style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-            <div className="glass-warm" style={{ borderRadius: 12, padding: '9px 14px', border: '1px solid rgba(200,150,62,0.18)', background: 'rgba(255,252,247,0.88)', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 8px 22px rgba(61,54,48,0.08)' }}>
+          <div className="tourist-map-tips-section" style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+            <div className="glass-warm tourist-map-tips-card" style={{ borderRadius: 12, padding: '9px 14px', border: '1px solid rgba(200,150,62,0.18)', background: 'rgba(255,252,247,0.88)', display: 'flex', flexDirection: 'column', justifyContent: 'center', boxShadow: '0 8px 22px rgba(61,54,48,0.08)' }}>
               <div style={{ display: 'grid', gap: 3, fontSize: 13, color: '#4f463d', lineHeight: 1.55, fontWeight: 700 }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '18px 72px minmax(0, 1fr)', alignItems: 'baseline', columnGap: 4 }}>
                   <span style={{ textAlign: 'center' }}>💡</span>
@@ -388,7 +388,7 @@ export default function TourPage() {
         </div>
 
         {/* 🛠️ 关键修改点3：右侧面板 */}
-        <div style={{
+        <div className="tourist-map-route-column" style={{
           width: '38%',
           height: '100%',
           padding: 0,
@@ -407,7 +407,7 @@ export default function TourPage() {
           `}</style>
 
           {/* 今日天气 — 固定顶部，与左侧标题对齐 */}
-          <div className="glass-warm" style={{ borderRadius: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginTop: '-2px' }}>
+          <div className="glass-warm tourist-map-weather-card" style={{ borderRadius: 12, padding: '6px 12px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, marginTop: '-2px' }}>
             <div style={{ fontSize: 26, lineHeight: 1 }}>
               {weather ? (weather.weather.includes('晴') ? '☀️' : weather.weather.includes('云') ? '⛅' : weather.weather.includes('阴') ? '☁️' : weather.weather.includes('雨') ? '🌧️' : '🌤️') : '🌤️'}
             </div>
@@ -423,8 +423,8 @@ export default function TourPage() {
           </div>
 
           {/* 胜境风物标题 + 筛选 */}
-          <div style={{ flexShrink: 0 }}>
-            <div className="guofeng-title" style={{ fontSize: 18, padding: '4px 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className="tourist-map-route-header" style={{ flexShrink: 0 }}>
+            <div className="guofeng-title tourist-map-route-title" style={{ fontSize: 18, padding: '4px 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}>
               路线推荐
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 8 }}>
@@ -445,7 +445,7 @@ export default function TourPage() {
           </div>
 
           {/* 滚动区：智能定制 + 路线卡片 */}
-          <div className="custom-scrollbar" style={{
+          <div className="custom-scrollbar tourist-map-route-list" style={{
             flex: 1, overflowY: 'auto', display: 'flex',
             flexDirection: 'column', gap: 10, paddingRight: '4px', paddingBottom: 22
           }}>

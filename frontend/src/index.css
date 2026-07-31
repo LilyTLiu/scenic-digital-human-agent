@@ -2352,7 +2352,16 @@ body::after {
   gap: 8px;
 }
 
+.tourist-chat-mobile-avatar-picker {
+  position: absolute;
+  top: 82px;
+  left: 0;
+  right: 0;
+  z-index: 6;
+}
+
 .tourist-chat-mobile-bottom .tourist-chat-avatar-selector,
+.tourist-chat-mobile-avatar-picker .tourist-chat-avatar-selector,
 .tourist-chat-dialog-avatar-picker .tourist-chat-avatar-selector {
   width: auto;
   margin: 0 12px;
@@ -2407,6 +2416,127 @@ body::after {
   object-position: center center;
   pointer-events: none;
   filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.34));
+}
+
+.tourist-chat-mobile-avatar-canvas > *,
+.tourist-chat-mobile-avatar-canvas canvas,
+.tourist-chat-mobile-avatar-canvas video,
+.tourist-chat-mobile-avatar-canvas img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  object-fit: contain !important;
+  object-position: center center !important;
+  background: transparent !important;
+  transform: translateY(-4%) scale(0.76);
+  transform-origin: center center;
+}
+
+.tourist-chat-mobile-avatar-canvas canvas,
+.tourist-chat-mobile-avatar-canvas video {
+  display: block;
+}
+
+@media (max-width: 899px) {
+  .app-shell:not(.app-shell--desktop) .tourist-chat-shell {
+    background: #f7f4ef !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-page-header {
+    padding: 18px 18px 10px !important;
+    background: transparent !important;
+    color: var(--text-primary) !important;
+    box-shadow: none !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-title {
+    font-family: var(--font-serif) !important;
+    font-size: 22px !important;
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    letter-spacing: 0.03em !important;
+    line-height: 1.2 !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-subtitle {
+    margin-top: 3px !important;
+    font-size: 12.5px !important;
+    color: var(--text-secondary) !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-status-dot {
+    display: none !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-action-button,
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-switch-button {
+    border-color: rgba(200, 150, 62, 0.22) !important;
+    background: #c8963e !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
+    box-shadow: 0 4px 12px rgba(200, 150, 62, 0.20) !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-avatar-picker .tourist-chat-avatar-selector {
+    min-height: 38px;
+    margin: 0 22px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(255, 252, 247, 0.88);
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-avatar-picker .tourist-chat-avatar-selector-label {
+    font-size: 11px;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-avatar-picker .tourist-chat-avatar-options {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-mobile-avatar-picker .tourist-chat-avatar-option {
+    min-height: 26px;
+    padding: 0 9px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-input-quick-row {
+    margin-top: 9px;
+    padding: 0 50px;
+    transform: none;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-input-quick-row button {
+    width: 100%;
+    min-height: 28px;
+    padding: 0 4px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-dialog .tourist-chat-input-quick-row {
+    padding: 0 50px;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-shell:not(.app-shell--desktop) .tourist-chat-input-quick-row {
+    padding: 0 42px;
+    gap: 6px;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-chat-input-quick-row button {
+    font-size: 11px;
+  }
 }
 
   .app-shell--desktop .tourist-chat-desktop {
@@ -2971,6 +3101,347 @@ body::after {
 
   .zen-title-vertical {
     font-size: 44px;
+  }
+}
+
+@media (max-width: 899px) {
+  .app-shell:not(.app-shell--desktop) .tourist-home {
+    padding-bottom: 86px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-wrap {
+    margin: 0 12px !important;
+    padding-bottom: 42px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-card {
+    height: 342px !important;
+    border-radius: 14px !important;
+    background-position: center top !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-content {
+    padding: 16px 16px 58px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-top {
+    gap: 8px !important;
+    align-items: flex-start !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-badges {
+    min-width: 0 !important;
+    max-width: calc(100% - 76px) !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-badge {
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px 9px !important;
+    font-size: 10.5px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-badge:first-child {
+    flex: 0 0 88px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-badge:last-child {
+    flex: 1 1 126px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-login-chip {
+    min-height: 34px !important;
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    border-radius: 18px !important;
+    white-space: nowrap !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-copy {
+    margin-bottom: 0 !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-title {
+    max-width: 92% !important;
+    font-size: 30px !important;
+    line-height: 1.18 !important;
+    letter-spacing: 0.02em !important;
+    margin-bottom: 8px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-subtitle {
+    max-width: 92% !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-stat-row {
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 4px !important;
+    gap: 8px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-stat-card {
+    height: 68px !important;
+    min-width: 0 !important;
+    padding: 10px 5px 8px !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    text-align: center !important;
+    border-radius: 12px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-stat-value {
+    font-size: 21px !important;
+    line-height: 1.05 !important;
+    white-space: nowrap !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-stat-value span {
+    font-size: 12px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-stat-label {
+    margin-top: 5px !important;
+    font-size: 10.5px !important;
+    line-height: 1.25 !important;
+    letter-spacing: 0 !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-entry-row {
+    margin: 14px 12px 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.18fr) minmax(0, 0.82fr) !important;
+    gap: 10px !important;
+    align-items: stretch !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-entry,
+  .app-shell:not(.app-shell--desktop) .tourist-home-map-entry {
+    min-width: 0 !important;
+    display: block !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-card,
+  .app-shell:not(.app-shell--desktop) .tourist-home-map-card {
+    min-height: 194px !important;
+    border-radius: 14px !important;
+    padding: 14px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 82px !important;
+    grid-template-rows: minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-copy {
+    align-self: start !important;
+    min-width: 0 !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-card .tourist-home-guide-copy {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100% !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-card .tourist-home-entry-title {
+    white-space: nowrap !important;
+    font-size: 17px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-entry-title {
+    font-size: 18px !important;
+    line-height: 1.18 !important;
+    letter-spacing: 0.01em !important;
+    margin-bottom: 8px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-entry-text {
+    font-size: 12.5px !important;
+    line-height: 1.65 !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-entry-action {
+    min-height: 38px !important;
+    padding: 0 18px !important;
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-card .tourist-home-entry-action {
+    grid-column: 1 / 2 !important;
+    align-self: end !important;
+    justify-self: start !important;
+    margin-top: auto !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-avatar {
+    grid-column: 2 / 3 !important;
+    grid-row: 1 / 3 !important;
+    align-self: center !important;
+    width: 82px !important;
+    height: 118px !important;
+    border-radius: 10px !important;
+    transform: translateY(-10px) !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-avatar img {
+    object-fit: cover !important;
+    object-position: center 12% !important;
+    transform: scale(1.16) !important;
+    transform-origin: center top !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-map-card {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-map-icon {
+    font-size: 22px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-map-card .tourist-home-entry-action {
+    margin-top: auto !important;
+    align-self: flex-start !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-card {
+    height: 326px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-hero-title {
+    font-size: 27px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-entry-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-home-guide-card,
+  .app-shell:not(.app-shell--desktop) .tourist-home-map-card {
+    min-height: 168px !important;
+  }
+}
+
+@media (max-width: 899px) {
+  .app-shell:not(.app-shell--desktop) .tourist-map-page-header {
+    margin: 0 18px !important;
+    padding: 20px 0 10px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-stage {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 0 18px 86px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-main-column,
+  .app-shell:not(.app-shell--desktop) .tourist-map-route-column {
+    width: 100% !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: visible !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-main-column {
+    gap: 10px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-notice-row {
+    order: 2;
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-panel {
+    order: 1;
+    width: 100% !important;
+    height: 360px !important;
+    flex: none !important;
+    margin: 0 !important;
+    border-radius: 14px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-tips-section {
+    order: 3;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-tips-card {
+    width: 100% !important;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-route-column {
+    gap: 10px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-weather-card {
+    width: 100% !important;
+    margin-top: 0 !important;
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+    background: rgba(255, 252, 247, 0.88);
+    border: 1px solid rgba(200, 150, 62, 0.16);
+    box-shadow: 0 8px 22px rgba(61, 54, 48, 0.08);
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-route-header {
+    width: 100% !important;
+    padding-top: 2px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-route-title {
+    font-size: 19px !important;
+    padding: 4px 0 6px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-route-list {
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .app-shell:not(.app-shell--desktop) .tourist-map-stage {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+  }
+
+  .app-shell:not(.app-shell--desktop) .tourist-map-panel {
+    height: 330px !important;
   }
 }
 
