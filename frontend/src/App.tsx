@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { UserProvider } from './contexts/UserContext'
+import SplashScreen from './components/SplashScreen'
 import TouristLayout from './pages/tourist/Layout'
 import AdminLayout from './pages/admin/Layout'
 import HomePage from './pages/tourist/HomePage'
@@ -19,6 +20,7 @@ import Checkins from './pages/admin/Checkins'
 export default function App() {
   return (
     <UserProvider>
+      <SplashScreen />
       <Routes>
         <Route path="/" element={<Navigate to="/tourist" replace />} />
         <Route path="/tourist" element={<TouristLayout />}>

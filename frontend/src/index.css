@@ -2797,3 +2797,117 @@ body::after {
   100% { transform: translateX(-100%); }
 }
 
+
+/* ================= 灵山胜境 · 开屏入场动画（乘云而入）================= */
+/* 全屏绝对定位遮罩层，罩在主系统外层 */
+
+.zen-splash-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 99999;
+  cursor: pointer;
+  overflow: hidden;
+  background: #fbf9f5; /* 熟宣色作为最终底色 */
+  display: flex;
+  justify-content: flex-end; /* 文案在右侧纵向排列，与左侧大图拉开区分 */
+  align-items: center;
+  padding-right: 10%;
+  box-sizing: border-box;
+}
+
+/* 背景大图层：带一点点向左徐徐移动的电影感 */
+.zen-splash-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  /* 初始状态带有一点向右偏移 */
+  transform: scale(1.02) translateX(10px);
+  transition: transform 1.5s cubic-bezier(0.33, 1, 0.68, 1),
+    opacity 1.2s cubic-bezier(0.33, 1, 0.68, 1);
+  z-index: 1;
+}
+
+/* 竖排文人美学排版 */
+.zen-splash-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: row-reverse; /* 从右向左阅读的古典顺序 */
+  align-items: flex-start;
+  gap: 24px;
+  font-family: 'Source Han Serif SC', 'Noto Serif SC', 'SimSun', serif;
+}
+
+/* 竖排大标题 */
+.zen-title-vertical {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-size: 56px;
+  font-weight: 600;
+  color: #4a3c31; /* 墨赭色，摩崖石刻质感 */
+  letter-spacing: 12px;
+  line-height: 1.2;
+  text-shadow: 0 2px 10px rgba(251, 249, 245, 0.8); /* 暖色浅阴影 */
+}
+
+/* 竖排副标题 */
+.zen-subtitle-vertical {
+  margin: 0;
+  padding-top: 15px;
+  font-size: 16px;
+  color: #8c7c6e; /* 淡墨色 */
+  letter-spacing: 6px;
+  writing-mode: vertical-rl; /* 强制竖排 */
+}
+
+/* 互动小印章按钮（呼吸灯特效）*/
+.zen-seal-btn {
+  margin-top: 20px;
+  width: 42px;
+  height: 42px;
+  border: 2px solid #c5a06b; /* 琥珀金边框 */
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(251, 249, 245, 0.4);
+  backdrop-filter: blur(4px);
+  animation: sealBreathe 2.5s ease-in-out infinite;
+}
+
+.seal-text {
+  font-size: 12px;
+  color: #c5a06b;
+  font-weight: bold;
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+@keyframes sealBreathe {
+  0%, 100% { transform: scale(0.96); border-color: rgba(197, 160, 107, 0.5); }
+  50% { transform: scale(1.04); border-color: rgba(197, 160, 107, 1); box-shadow: 0 0 12px rgba(197, 160, 107, 0.4); }
+}
+
+/* ================ 离场 "破雾" 行动画 ================ */
+.zen-splash-container.exit-active .zen-splash-bg {
+  transform: scale(1.08) translateX(-20px); /* 往左缓缓平移并淡出，像画卷卷起 */
+  opacity: 0;
+}
+
+.zen-splash-container.exit-active .zen-splash-content {
+  transform: scale(0.95);
+  opacity: 0;
+  transition: transform 1s ease, opacity 1s ease;
+}
+
+.zen-splash-container.exit-active {
+  pointer-events: none;
+  background: #fbf9f5; /* 最终无缝过渡到系统首页的暖沙色底色 */
+  opacity: 0;
+  transition: background 1.2s ease, opacity 1.2s ease;
+}
